@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --color-space: #000000;
+  --color-aquamarine: #7FFFD4;
+  --color-midnight: #000000;
+  --color-cobalt: #0047AB;
+  --color-cyan: #00E5FF;
+  --color-teal: #00BFA5;
+  --color-indigo: #3D5AFE;
+  --color-formula-green: #00E676;
+  --color-stellar-ember: #FF8C00;
+  --color-nebula-lavender: #967BB6;
+  --color-star-point-blue: #F0F8FF;
+  --color-void-charcoal: #121212;
+  --color-absolute-void: #000000;
+  --animate-frantic-pulse: frantic-pulse 1s ease-in-out infinite;
+  --animate-accretion-spin: accretion-spin 3s linear infinite;
+  
+  @keyframes frantic-pulse {
+    0%, 100% { border-color: rgba(255, 140, 0, 0.2); box-shadow: inset 0 0 20px rgba(255, 140, 0, 0.2); border-width: 4px; }
+    10% { border-color: rgba(255, 140, 0, 1); box-shadow: inset 0 0 100px rgba(255, 140, 0, 0.8); border-width: 16px; }
+  }
+
+  @keyframes accretion-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}
+
+.accretion-card {
+  position: relative;
+  background: transparent;
+  /* backdrop-filter: blur(0px); */
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.accretion-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  padding: 2px;
+  border-radius: 1rem;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    #00FFFF 5%,
+    #7FFFD4 10%,
+    transparent 15%,
+    #0047AB 20%,
+    #00FFFF 25%,
+    transparent 30%,
+    #008080 35%,
+    #00FFFF 40%,
+    transparent 45%,
+    #2E0854 50%,
+    #008080 55%,
+    transparent 60%,
+    #00FFFF 65%,
+    #0047AB 70%,
+    transparent 75%,
+    #7FFFD4 80%,
+    #00FFFF 85%,
+    transparent 90%,
+    #2E0854 95%,
+    transparent 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: accretion-spin 3s linear infinite;
+  /* filter: blur(0.5px) brightness(1.5); */
+  pointer-events: none;
+}
+
+.accretion-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.15);
+  pointer-events: none;
+  animation: accretion-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes accretion-glow {
+  from { box-shadow: 0 0 10px rgba(0, 255, 255, 0.1); }
+  to { box-shadow: 0 0 25px rgba(0, 255, 255, 0.3); }
+}
+
+body {
+  background-color: var(--color-space);
+  color: white;
+  font-family: var(--font-sans);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 255, 0.5);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.8);
+}
+
