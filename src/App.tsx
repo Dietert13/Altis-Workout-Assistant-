@@ -4,6 +4,75 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+
+// --- TimeInput Component ---
+const TimeInput = ({ 
+  value, 
+  onChange, 
+  onFocus,
+  placeholder, 
+  className, 
+  required 
+}: { 
+  value: number | ''; 
+  onChange: (val: number | '') => void; 
+  onFocus?: () => void;
+  placeholder?: string; 
+  className?: string; 
+  required?: boolean;
+}) => {
+  const formatTime = (secs: number | '') => {
+    if (secs === '' || secs === undefined) return '';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const parseTime = (str: string) => {
+    if (!str || str.trim() === '') return '';
+    if (str.includes(':')) {
+      const [m, s] = str.split(':');
+      return (parseInt(m) || 0) * 60 + (parseInt(s) || 0);
+    }
+    return parseInt(str) || 0;
+  };
+
+  const [localVal, setLocalVal] = useState(formatTime(value));
+
+  useEffect(() => {
+    setLocalVal(formatTime(value));
+  }, [value]);
+
+  const handleBlur = () => {
+    const parsed = parseTime(localVal);
+    onChange(parsed);
+    setLocalVal(formatTime(parsed));
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalVal(e.target.value);
+  };
+
+  const handleFocus = () => {
+    if (onFocus) onFocus();
+    else setLocalVal('');
+  };
+
+  return (
+    <input 
+      type="text" 
+      inputMode="numeric"
+      value={localVal} 
+      onChange={handleChange} 
+      onBlur={handleBlur} 
+      onFocus={handleFocus}
+      placeholder={placeholder || "0:00"} 
+      className={className} 
+      required={required} 
+    />
+  );
+};
+// ---------------------------
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -218,7 +287,7 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
         const currentSubEx = ssEx.exercises[subIdx];
         if (rep < Number(currentSubEx.reps)) {
           if (currentSubEx.mode === 'time' && currentSubEx.restBetweenReps && currentSubEx.restBetweenReps > 0) {
-            ph = 'Superset_Active'; // We'll handle internal rep rest differently or just skip for now
+            ph = 'Superset_Active'; // We'll handle internal rep easy differently or just skip for now
             rep++;
           } else {
             rep++;
@@ -669,11 +738,11 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
                     <div className="text-2xl font-mono text-white">{setDetails.sets}</div>
                   </div>
                   <div className="bg-transparent rounded-xl p-2 border border-white/5 shadow-[inset_0_0_20px_rgba(0,255,255,0.05)]">
-                    <div className="text-cyan/80 text-xs uppercase tracking-wider mb-1 font-bold">Reps</div>
+                    <div className="text-green/80 text-xs uppercase tracking-wider mb-1 font-bold">Reps</div>
                     <div className="text-2xl font-mono text-white">{setDetails.reps}</div>
                   </div>
                   <div className="bg-transparent rounded-xl p-2 border border-white/5 shadow-[inset_0_0_20px_rgba(0,71,171,0.05)]">
-                    <div className="text-teal/80 text-xs uppercase tracking-wider mb-1 font-bold">Mode</div>
+                    <div className="text-red/80 text-xs uppercase tracking-wider mb-1 font-bold">Mode</div>
                     <div className="text-xl font-mono text-white capitalize">{setDetails.mode}</div>
                   </div>
                 </div>
@@ -716,11 +785,11 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
                     <div className="text-2xl font-mono text-white">{hiitDetails?.warmup || 0}s</div>
                   </div>
                   <div className="bg-transparent rounded-xl p-2 border border-white/5 shadow-[inset_0_0_20px_rgba(0,255,255,0.05)]">
-                    <div className="text-cyan/80 text-xs uppercase tracking-wider mb-1 font-bold">Hard</div>
+                    <div className="text-green/80 text-xs uppercase tracking-wider mb-1 font-bold">Hard</div>
                     <div className="text-2xl font-mono text-white">{hiitDetails?.hard || 30}s</div>
                   </div>
                   <div className="bg-transparent rounded-xl p-2 border border-white/5 shadow-[inset_0_0_20px_rgba(0,128,128,0.05)]">
-                    <div className="text-teal/80 text-xs uppercase tracking-wider mb-1 font-bold">Easy</div>
+                    <div className="text-red/80 text-xs uppercase tracking-wider mb-1 font-bold">Easy</div>
                     <div className="text-2xl font-mono text-white">{hiitDetails?.easy || 0}s</div>
                   </div>
                   <div className="bg-transparent rounded-xl p-2 border border-white/5 shadow-[inset_0_0_20px_rgba(0,71,171,0.05)]">
@@ -779,10 +848,10 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
   const getPhaseColorHex = (p: Phase) => {
     switch (p) {
-      case 'Warmup': return '#7FFFD4'; // aquamarine
-      case 'Hard': return '#00E5FF'; // cyan
-      case 'Easy': return '#00BFA5'; // teal
-      case 'Cooldown': return '#0047AB'; // cobalt
+      case 'Warmup': return '#FFFF00'; // yellow
+      case 'Hard': return '#00FF00'; // green
+      case 'Easy': return '#FF0000'; // red
+      case 'Cooldown': return '#0000FF'; // blue
       case 'Set_Active': return '#00E5FF'; // cyan
       case 'Set_RepRest': return '#3D5AFE'; // indigo
       case 'Set_Rest': return '#0047AB'; // cobalt
@@ -795,10 +864,10 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
   const getPhaseColorClass = (p: Phase) => {
     switch (p) {
-      case 'Warmup': return 'text-aquamarine drop-shadow-[0_0_10px_rgba(127,255,212,0.8)]';
-      case 'Hard': return 'text-cyan drop-shadow-[0_0_10px_rgba(0,229,255,0.8)]';
-      case 'Easy': return 'text-teal drop-shadow-[0_0_10px_rgba(0,191,165,0.8)]';
-      case 'Cooldown': return 'text-cobalt drop-shadow-[0_0_10px_rgba(0,71,171,0.8)]';
+      case 'Warmup': return 'text-yellow drop-shadow-[0_0_10px_rgba(255,255,0,0.8)]';
+      case 'Hard': return 'text-green drop-shadow-[0_0_10px_rgba(0,255,0,0.8)]';
+      case 'Easy': return 'text-red drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]';
+      case 'Cooldown': return 'text-blue-500 drop-shadow-[0_0_10px_rgba(0,0,255,0.8)]';
       case 'Set_Active': return 'text-cyan drop-shadow-[0_0_10px_rgba(0,229,255,0.8)]';
       case 'Set_RepRest': return 'text-indigo drop-shadow-[0_0_10px_rgba(61,90,254,0.8)]';
       case 'Set_Rest': return 'text-cobalt drop-shadow-[0_0_10px_rgba(0,71,171,0.8)]';
@@ -816,10 +885,10 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
     if (flashTrigger > 0) return 'border-white/80 shadow-[inset_0_0_70px_rgba(255,255,255,0.6)]';
     if (!isWarning) return 'border-transparent';
     switch (phase) {
-      case 'Warmup': return 'animate-[pulse_1s_ease-in-out_infinite] border-aquamarine shadow-[inset_0_0_50px_rgba(127,255,212,0.5)]';
-      case 'Hard': return 'animate-[pulse_1s_ease-in-out_infinite] border-cyan shadow-[inset_0_0_50px_rgba(0,255,255,0.5)]';
-      case 'Easy': return 'animate-[pulse_1s_ease-in-out_infinite] border-teal shadow-[inset_0_0_50px_rgba(0,128,128,0.5)]';
-      case 'Cooldown': return 'animate-[pulse_1s_ease-in-out_infinite] border-cobalt shadow-[inset_0_0_50px_rgba(0,71,171,0.5)]';
+      case 'Warmup': return 'animate-[pulse_1s_ease-in-out_infinite] border-yellow shadow-[inset_0_0_50px_rgba(255,255,0,0.5)]';
+      case 'Hard': return 'animate-[pulse_1s_ease-in-out_infinite] border-green shadow-[inset_0_0_50px_rgba(0,255,0,0.5)]';
+      case 'Easy': return 'animate-[pulse_1s_ease-in-out_infinite] border-red shadow-[inset_0_0_50px_rgba(255,0,0,0.5)]';
+      case 'Cooldown': return 'animate-[pulse_1s_ease-in-out_infinite] border-blue-500 shadow-[inset_0_0_50px_rgba(0,0,255,0.5)]';
       case 'Set_Active': return 'animate-[pulse_1s_ease-in-out_infinite] border-cyan shadow-[inset_0_0_50px_rgba(0,255,255,0.5)]';
       case 'Set_RepRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-indigo shadow-[inset_0_0_50px_rgba(46,8,84,0.5)]';
       case 'Set_Rest': return 'animate-[pulse_1s_ease-in-out_infinite] border-cobalt shadow-[inset_0_0_50px_rgba(0,71,171,0.5)]';
@@ -1111,6 +1180,7 @@ export default function App() {
     const saved = localStorage.getItem('palaestra_workout');
     return saved ? JSON.parse(saved) : [];
   });
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [workoutName, setWorkoutName] = useState(() => {
     return localStorage.getItem('palaestra_workoutName') || '';
   });
@@ -1121,6 +1191,11 @@ export default function App() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [saveAndStartModal, setSaveAndStartModal] = useState<'none' | 'unnamed' | 'noExercises' | 'both'>('none');
+  const [customAlert, setCustomAlert] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+
+  const showAlert = (message: string) => {
+    setCustomAlert({ show: true, message });
+  };
 
   const getNextWorkoutName = () => {
     let i = 1;
@@ -1132,10 +1207,22 @@ export default function App() {
 
   const saveAndStartWorkout = (name: string = workoutName) => {
     const nameToSave = name || 'Untitled Workout';
-    const existingIndex = savedWorkouts.findIndex(w => w.name === nameToSave);
+    
+    // Check for duplicates
+    const isDuplicate = savedWorkouts.some(w => 
+      w.name.toLowerCase() === nameToSave.toLowerCase() && 
+      (!editingWorkoutId || w.id !== editingWorkoutId)
+    );
+    
+    if (isDuplicate) {
+      showAlert(`"${nameToSave}" already exists in your library, choose a new name.`);
+      return;
+    }
+
+    const existingIndex = savedWorkouts.findIndex(w => w.id === editingWorkoutId);
     if (existingIndex >= 0) {
       const updated = [...savedWorkouts];
-      updated[existingIndex] = { ...updated[existingIndex], items: currentWorkout };
+      updated[existingIndex] = { ...updated[existingIndex], name: nameToSave, items: currentWorkout };
       setSavedWorkouts(updated);
     } else {
       const newWorkout = {
@@ -1144,6 +1231,7 @@ export default function App() {
         items: currentWorkout
       };
       setSavedWorkouts([...savedWorkouts, newWorkout]);
+      setEditingWorkoutId(newWorkout.id);
     }
     setCurrentView('WorkoutMode');
   };
@@ -1165,6 +1253,7 @@ export default function App() {
 
   // Custom Builder state
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [editingLibraryExerciseId, setEditingLibraryExerciseId] = useState<string | null>(null);
   const [customBuilderType, setCustomBuilderType] = useState<'HIIT' | 'Set' | 'Superset' | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1172,6 +1261,59 @@ export default function App() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+    const editLibraryExercise = (exercise: Exercise) => {
+    setEditingLibraryExerciseId(exercise.id);
+    setBuilderType(exercise.type);
+    setBuilderSource('library');
+    
+    if (exercise.type === 'HIIT') {
+      setName(exercise.name);
+      setWarmup(exercise.warmup);
+      setHard(exercise.hard);
+      setEasy(exercise.easy);
+      setCooldown(exercise.cooldown);
+      setRounds(exercise.rounds);
+      setHardName(exercise.hardName || '');
+      setEasyName(exercise.easyName || '');
+      if (exercise.metronome) {
+        setWarmupMetronome(exercise.metronome.warmup?.enabled || false);
+        setWarmupBpm(exercise.metronome.warmup?.bpm || 120);
+        setHardMetronome(exercise.metronome.hard?.enabled || false);
+        setHardBpm(exercise.metronome.hard?.bpm || 120);
+        setEasyMetronome(exercise.metronome.easy?.enabled || false);
+        setEasyBpm(exercise.metronome.easy?.bpm || 120);
+        setCooldownMetronome(exercise.metronome.cooldown?.enabled || false);
+        setCooldownBpm(exercise.metronome.cooldown?.bpm || 120);
+      }
+    } else if (exercise.type === 'Set') {
+      setSetNameState(exercise.name);
+      setSetSets(exercise.sets);
+      setSetReps(exercise.reps);
+      setSetMode(exercise.mode);
+      setSetRepDuration(exercise.repDuration || '');
+      setSetRestBetweenReps(exercise.restBetweenReps || '');
+      setSetRestBetweenSets(exercise.restBetweenSets || '');
+      setSetUseRepDuration(!!exercise.repDuration);
+      setSetUseRestBetweenReps(!!exercise.restBetweenReps);
+      setSetUseRestBetweenSets(!!exercise.restBetweenSets);
+    } else if (exercise.type === 'Superset') {
+      setSsName(exercise.name);
+      setSsTotalSupersets(exercise.totalSupersets);
+      setSsMode(exercise.mode);
+      setSsExerciseTransition(exercise.exerciseTransitionTimer || '');
+      setSsSupersetTransition(exercise.supersetTransitionTimer || '');
+      setSsExercises(exercise.exercises.map(ex => ({
+        id: ex.id,
+        name: ex.name,
+        reps: ex.reps,
+        mode: ex.mode,
+        repDuration: ex.repDuration || '',
+        restBetweenReps: ex.restBetweenReps || ''
+      })));
+    }
+    setCurrentView('ExerciseBuilder');
+  };
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -1308,11 +1450,11 @@ export default function App() {
                       <div className="font-mono">{item.exercise.warmup}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-white/5">
-                      <div className="text-cyan/70 text-xs mb-1">Hard</div>
+                      <div className="text-green/70 text-xs mb-1">Hard</div>
                       <div className="font-mono">{item.exercise.hard}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-white/5">
-                      <div className="text-teal/70 text-xs mb-1">Easy</div>
+                      <div className="text-red/70 text-xs mb-1">Easy</div>
                       <div className="font-mono">{item.exercise.easy}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-white/5">
@@ -1320,7 +1462,7 @@ export default function App() {
                       <div className="font-mono">{item.exercise.cooldown}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-cyan/30">
-                      <div className="text-cyan/70 text-xs mb-1">Rounds</div>
+                      <div className="text-green/70 text-xs mb-1">Rounds</div>
                       <div className="font-mono">{item.exercise.rounds}x</div>
                     </div>
                   </div>
@@ -1331,15 +1473,15 @@ export default function App() {
                       <div className="font-mono">{item.exercise.sets}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-white/5">
-                      <div className="text-cyan/70 text-xs mb-1">Reps</div>
+                      <div className="text-green/70 text-xs mb-1">Reps</div>
                       <div className="font-mono">{item.exercise.reps}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-white/5">
-                      <div className="text-teal/70 text-xs mb-1">Rest</div>
+                      <div className="text-red/70 text-xs mb-1">Easy</div>
                       <div className="font-mono">{item.exercise.restBetweenSets}</div>
                     </div>
                     <div className="bg-transparent rounded p-2 border border-cyan/30">
-                      <div className="text-cyan/70 text-xs mb-1 capitalize">Mode</div>
+                      <div className="text-green/70 text-xs mb-1 capitalize">Mode</div>
                       <div className="font-mono">{item.exercise.mode}</div>
                     </div>
                   </div>
@@ -1351,11 +1493,11 @@ export default function App() {
                         <div className="font-mono">{item.exercise.totalSupersets}x</div>
                       </div>
                       <div className="bg-transparent rounded p-2 border border-white/5">
-                        <div className="text-cyan/70 text-xs mb-1">Exercises</div>
+                        <div className="text-green/70 text-xs mb-1">Exercises</div>
                         <div className="font-mono">{item.exercise.exercises.length}</div>
                       </div>
                       <div className="bg-transparent rounded p-2 border border-white/5">
-                        <div className="text-teal/70 text-xs mb-1 capitalize">Mode</div>
+                        <div className="text-red/70 text-xs mb-1 capitalize">Mode</div>
                         <div className="font-mono">{item.exercise.mode}</div>
                       </div>
                     </div>
@@ -1387,7 +1529,7 @@ export default function App() {
 
     if (customBuilderType === 'HIIT') {
       if (!cbName || cbWarmup === '' || cbHard === '' || cbEasy === '' || cbCooldown === '' || cbRounds === '') {
-        alert('Please fill in all fields');
+        showAlert('Please fill in all fields');
         return;
       }
       newExercise = {
@@ -1410,7 +1552,7 @@ export default function App() {
       };
     } else if (customBuilderType === 'Set') {
       if (!cbName || cbSets === '' || cbReps === '') {
-        alert('Please fill in all required fields');
+        showAlert('Please fill in all required fields');
         return;
       }
       newExercise = {
@@ -1426,7 +1568,7 @@ export default function App() {
       };
     } else if (customBuilderType === 'Superset') {
       if (!cbName || cbSsTotalSupersets === '' || cbSsExercises.length === 0) {
-        alert('Please fill in all required fields and add at least one exercise');
+        showAlert('Please fill in all required fields and add at least one exercise');
         return;
       }
       newExercise = {
@@ -1530,8 +1672,12 @@ export default function App() {
 
   const handleSaveExercise = (e?: React.FormEvent): HIITExercise | null => {
     if (e) e.preventDefault();
+    if (exerciseLibrary.some(ex => ex.name.toLowerCase() === name.toLowerCase() && ex.id !== editingLibraryExerciseId)) {
+      showAlert(`"${name}" already exists in your library, choose a new name.`);
+      return null;
+    }
     if (!name || warmup === '' || hard === '' || easy === '' || cooldown === '' || rounds === '') {
-      alert('Please fill in all fields');
+      showAlert('Please fill in all fields');
       return null;
     }
 
@@ -1554,7 +1700,22 @@ export default function App() {
       }
     };
 
-    setExerciseLibrary([...exerciseLibrary, newExercise]);
+    if (editingLibraryExerciseId) {
+      newExercise.id = editingLibraryExerciseId;
+      setExerciseLibrary(exerciseLibrary.map(ex => ex.id === editingLibraryExerciseId ? newExercise : ex));
+    } else {
+      if (editingLibraryExerciseId) {
+      newExercise.id = editingLibraryExerciseId;
+      setExerciseLibrary(exerciseLibrary.map(ex => ex.id === editingLibraryExerciseId ? newExercise : ex));
+    } else {
+      if (editingLibraryExerciseId) {
+      newExercise.id = editingLibraryExerciseId;
+      setExerciseLibrary(exerciseLibrary.map(ex => ex.id === editingLibraryExerciseId ? newExercise : ex));
+    } else {
+      setExerciseLibrary([...exerciseLibrary, newExercise]);
+    }
+    }
+    }
     
     // Reset form
     setName('');
@@ -1578,8 +1739,12 @@ export default function App() {
 
   const handleSaveSupersetExercise = (e?: React.FormEvent): SupersetExercise | null => {
     if (e) e.preventDefault();
+    if (exerciseLibrary.some(ex => ex.name.toLowerCase() === ssName.toLowerCase() && ex.id !== editingLibraryExerciseId)) {
+      showAlert(`"${ssName}" already exists in your library, choose a new name.`);
+      return null;
+    }
     if (!ssName || ssTotalSupersets === '' || ssExercises.length === 0) {
-      alert('Please fill in all required fields and add at least one exercise');
+      showAlert('Please fill in all required fields and add at least one exercise');
       return null;
     }
 
@@ -1615,13 +1780,17 @@ export default function App() {
 
   const handleSaveSetExercise = (e?: React.FormEvent): SetExercise | null => {
     if (e) e.preventDefault();
+    if (exerciseLibrary.some(ex => ex.name.toLowerCase() === setNameState.toLowerCase() && ex.id !== editingLibraryExerciseId)) {
+      showAlert(`"${setNameState}" already exists in your library, choose a new name.`);
+      return null;
+    }
     if (!setNameState || setSets === '' || setReps === '') {
-      alert('Please fill in all required fields');
+      showAlert('Please fill in all required fields');
       return null;
     }
 
     if (Number(setSets) < 1 || Number(setReps) < 1) {
-      alert('Sets and Reps must be at least 1');
+      showAlert('Sets and Reps must be at least 1');
       return null;
     }
 
@@ -1660,6 +1829,7 @@ export default function App() {
     else if (builderType === 'Superset') newExercise = handleSaveSupersetExercise();
 
     if (newExercise) {
+      setEditingLibraryExerciseId(null);
       if (action === 'workout') {
         setCurrentWorkout(prev => [...prev, {
           uniqueId: crypto.randomUUID(),
@@ -1791,7 +1961,7 @@ export default function App() {
                   <AccretionDisk size={112} color="#00E676" />
                   <div 
                     onClick={() => setCurrentView('Workouts')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-28 h-28 rounded-full border border-formula-green bg-transparent backdrop-blur-[1px] hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,230,118,0.2)] hover:shadow-[0_0_25px_rgba(0,230,118,0.4)] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]"
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-28 h-28 rounded-full border border-formula-green bg-transparent hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,230,118,0.2)] hover:shadow-[0_0_25px_rgba(0,230,118,0.4)] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]"
                   >
                     <ListPlus className="w-8 h-8 mb-1 text-formula-green group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]" />
                     <h2 className="text-xs font-bold text-white group-hover:text-formula-green transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center">
@@ -1807,7 +1977,7 @@ export default function App() {
                   <AccretionDisk size={96} color="#967BB6" />
                   <div 
                     onClick={() => setCurrentView('WorkoutPlanner')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-nebula-lavender bg-transparent backdrop-blur-[1px] hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(150,123,182,0.2)] hover:shadow-[0_0_25px_rgba(150,123,182,0.4)] drop-shadow-[0_0_8px_rgba(150,123,182,0.4)]"
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-nebula-lavender bg-transparent hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(150,123,182,0.2)] hover:shadow-[0_0_25px_rgba(150,123,182,0.4)] drop-shadow-[0_0_8px_rgba(150,123,182,0.4)]"
                   >
                     <ClipboardList className="w-6 h-6 mb-1 text-nebula-lavender group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(150,123,182,0.3)]" />
                     <h2 className="text-[9px] font-bold text-white group-hover:text-nebula-lavender transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center leading-tight max-w-[60px]">
@@ -1822,7 +1992,7 @@ export default function App() {
                   <AccretionDisk size={96} color="#00E5FF" />
                   <div 
                     onClick={() => setCurrentView('ExerciseLibrary')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-cyan bg-transparent backdrop-blur-[1px] hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]"
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-cyan bg-transparent hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]"
                   >
                     <Book className="w-6 h-6 mb-1 text-cyan group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(0,229,255,0.3)]" />
                     <h2 className="text-[9px] font-bold text-white group-hover:text-cyan transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center leading-tight max-w-[60px]">
@@ -1843,7 +2013,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -1855,9 +2025,10 @@ export default function App() {
                     onClick={() => {
                       setCurrentWorkout([]);
                       setWorkoutName('');
+                      setEditingWorkoutId(null);
                       setCurrentView('WorkoutPlanner');
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-white/[0.01] backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                     title="Add New Workout"
                   >
                     <Plus className="w-6 h-6 text-aquamarine group-hover:text-white group-hover:scale-110 transition-all duration-300 drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]" />
@@ -1872,7 +2043,7 @@ export default function App() {
                 <p className="text-aquamarine/60 text-sm tracking-[0.2em] uppercase mt-1">Your Training Archive</p>
               </div>
 
-              <div className="relative z-30 p-6 border border-white/20 rounded-2xl backdrop-blur-[1px]">
+              <div className="relative z-30 p-6 border border-white/20 rounded-2xl">
                 {savedWorkouts.length === 0 ? (
                   <div className="flex justify-center py-4">
                     <div className="relative">
@@ -1899,6 +2070,7 @@ export default function App() {
                             onClick={() => {
                               setCurrentWorkout(workout.items);
                               setWorkoutName(workout.name);
+                              setEditingWorkoutId(workout.id);
                               setCurrentView('WorkoutPlanner');
                             }}
                             className={`flex-1 bg-transparent no-blur hover:bg-transparent border border-cobalt/50 text-aquamarine py-2 rounded-lg transition-colors flex justify-center items-center ${CONTAINER_BUTTON_CLASS}`}
@@ -1931,7 +2103,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -1960,7 +2132,7 @@ export default function App() {
               <div ref={containerRef} className="max-w-2xl mx-auto relative z-30 overflow-hidden border border-white/20 rounded-2xl">
                 {/* Background Layer with Mask */}
                   <div 
-                    className="absolute inset-0 glass_fill z-0 backdrop-blur-[1px]"
+                    className="absolute inset-0 glass_fill z-0"
                     style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
                   />
                 {/* Overlay Layer for White Borders */}
@@ -2020,57 +2192,41 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-medium text-aquamarine mb-1">Warmup</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="0"
+                            <TimeInput 
                               value={warmup}
-                              onChange={(e) => setWarmup(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setWarmup}
                               onFocus={() => setWarmup('')}
                               className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                              placeholder="0:60"
                               required
                             />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-aquamarine mb-1">Cooldown</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="0"
+                            <TimeInput 
                               value={cooldown}
-                              onChange={(e) => setCooldown(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setCooldown}
                               onFocus={() => setCooldown('')}
                               className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                              placeholder="0:60"
                               required
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="block text-xs font-medium text-aquamarine mb-1">Work</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="1"
+                            <label className="block text-xs font-medium text-aquamarine mb-1">Hard</label>
+                            <TimeInput 
                               value={hard}
-                              onChange={(e) => setHard(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setHard}
                               onFocus={() => setHard('')}
                               className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                              placeholder="0:60"
                               required
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="block text-xs font-medium text-aquamarine mb-1">Rest</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="1"
+                            <label className="block text-xs font-medium text-aquamarine mb-1">Easy</label>
+                            <TimeInput 
                               value={easy}
-                              onChange={(e) => setEasy(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setEasy}
                               onFocus={() => setEasy('')}
                               className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                              placeholder="0:60"
                               required
                             />
                           </div>
@@ -2094,22 +2250,22 @@ export default function App() {
                       <div className="space-y-3 pt-4 border-t border-white/10">
                         <h4 className="text-sm font-medium text-aquamarine uppercase tracking-wider">Metronome Settings</h4>
                         {[
-                          { label: 'Warmup', enabled: warmupMetronome, setEnabled: setWarmupMetronome, bpm: warmupBpm, setBpm: setWarmupBpm },
-                          { label: 'Hard', enabled: hardMetronome, setEnabled: setHardMetronome, bpm: hardBpm, setBpm: setHardBpm },
-                          { label: 'Easy', enabled: easyMetronome, setEnabled: setEasyMetronome, bpm: easyBpm, setBpm: setEasyBpm },
-                          { label: 'Cooldown', enabled: cooldownMetronome, setEnabled: setCooldownMetronome, bpm: cooldownBpm, setBpm: setCooldownBpm },
+                          { label: 'Warmup', enabled: warmupMetronome, setEnabled: setWarmupMetronome, bpm: warmupBpm, setBpm: setWarmupBpm, colorBorder: 'border-yellow', colorShadow: 'shadow-[0_0_15px_rgba(255,255,0,0.2)]', textClass: 'text-yellow' },
+                          { label: 'Hard', enabled: hardMetronome, setEnabled: setHardMetronome, bpm: hardBpm, setBpm: setHardBpm, colorBorder: 'border-green', colorShadow: 'shadow-[0_0_15px_rgba(0,255,0,0.2)]', textClass: 'text-green' },
+                          { label: 'Easy', enabled: easyMetronome, setEnabled: setEasyMetronome, bpm: easyBpm, setBpm: setEasyBpm, colorBorder: 'border-red', colorShadow: 'shadow-[0_0_15px_rgba(255,0,0,0.2)]', textClass: 'text-red' },
+                          { label: 'Cooldown', enabled: cooldownMetronome, setEnabled: setCooldownMetronome, bpm: cooldownBpm, setBpm: setCooldownBpm, colorBorder: 'border-blue-500', colorShadow: 'shadow-[0_0_15px_rgba(0,0,255,0.2)]', textClass: 'text-blue-500' },
                         ].map((p) => (
                           <div 
                             key={p.label} 
                             onClick={() => p.setEnabled(!p.enabled)}
-                            className={`flex items-center justify-between p-3 bg-transparent rounded-xl border transition-all cursor-pointer ${p.enabled ? 'border-cobalt shadow-[0_0_15px_rgba(0,71,171,0.2)]' : 'border-white/10'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                            className={`flex items-center justify-between p-3 bg-transparent rounded-xl border transition-all cursor-pointer ${p.enabled ? `${p.colorBorder} ${p.colorShadow}` : 'border-white/10'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                           >
-                            <span className={`text-xs font-bold uppercase tracking-wider transition-all ${p.enabled ? 'text-white' : 'text-white/40'}`}>
+                            <span className={`text-xs font-bold uppercase tracking-wider transition-all ${p.enabled ? p.textClass : 'text-white/40'}`}>
                               {p.label}
                             </span>
                             {p.enabled && (
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <span className="text-[10px] text-aquamarine uppercase font-bold">BPM</span>
+                                <span className={`text-[10px] ${p.textClass} uppercase font-bold`}>BPM</span>
                                 <input
                                   type="number"
                                   inputMode="numeric"
@@ -2117,7 +2273,7 @@ export default function App() {
                                   value={p.bpm}
                                   onChange={(e) => p.setBpm(e.target.value === '' ? '' : Number(e.target.value))}
                                   onFocus={() => p.setBpm('')}
-                                  className="w-16 bg-transparent border border-cyan/30 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan transition-all text-center"
+                                  className={`w-16 bg-transparent border ${p.colorBorder} ${p.textClass} rounded px-2 py-1 text-xs focus:outline-none transition-all text-center`}
                                 />
                               </div>
                             )}
@@ -2219,15 +2375,11 @@ export default function App() {
                             {setUseRepDuration && (
                               <div>
                                 <label className="block text-xs font-medium text-aquamarine mb-1">Rep Duration</label>
-                                <input 
-                                  type="number" 
-                                  inputMode="numeric"
-                                  min="1"
+                                <TimeInput 
                                   value={setRepDuration}
-                                  onChange={(e) => setSetRepDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                                  onChange={setSetRepDuration}
                                   onFocus={() => setSetRepDuration('')}
                                   className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                                  placeholder="0:60"
                                   required
                                 />
                               </div>
@@ -2235,15 +2387,11 @@ export default function App() {
                             {setUseRestBetweenReps && (
                               <div>
                                 <label className="block text-xs font-medium text-aquamarine mb-1">Rest Between Reps</label>
-                                <input 
-                                  type="number" 
-                                  inputMode="numeric"
-                                  min="1"
+                                <TimeInput 
                                   value={setRestBetweenReps}
-                                  onChange={(e) => setSetRestBetweenReps(e.target.value === '' ? '' : Number(e.target.value))}
+                                  onChange={setSetRestBetweenReps}
                                   onFocus={() => setSetRestBetweenReps('')}
                                   className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                                  placeholder="0:60"
                                   required
                                 />
                               </div>
@@ -2251,15 +2399,11 @@ export default function App() {
                             {setUseRestBetweenSets && (
                               <div>
                                 <label className="block text-xs font-medium text-aquamarine mb-1">Rest Between Sets</label>
-                                <input 
-                                  type="number" 
-                                  inputMode="numeric"
-                                  min="1"
+                                <TimeInput 
                                   value={setRestBetweenSets}
-                                  onChange={(e) => setSetRestBetweenSets(e.target.value === '' ? '' : Number(e.target.value))}
+                                  onChange={setSetRestBetweenSets}
                                   onFocus={() => setSetRestBetweenSets('')}
                                   className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                                  placeholder="0:60"
                                   required
                                 />
                               </div>
@@ -2320,28 +2464,20 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-medium text-aquamarine mb-1">Exercise Transition</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="0"
+                            <TimeInput 
                               value={ssExerciseTransition}
-                              onChange={(e) => setSsExerciseTransition(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setSsExerciseTransition}
                               onFocus={() => setSsExerciseTransition('')}
                               className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                              placeholder="0:60"
                             />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-aquamarine mb-1">Superset Rest</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="0"
+                            <TimeInput 
                               value={ssSupersetTransition}
-                              onChange={(e) => setSsSupersetTransition(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setSsSupersetTransition}
                               onFocus={() => setSsSupersetTransition('')}
                               className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                              placeholder="0:60"
                             />
                           </div>
                         </div>
@@ -2429,35 +2565,37 @@ export default function App() {
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <label className="block text-xs font-medium text-aquamarine mb-1">Rep Duration</label>
-                                    <input 
-                                      type="number" 
-                                      inputMode="numeric"
-                                      min="1"
+                                    <TimeInput 
                                       value={ex.repDuration || ''}
-                                      onChange={(e) => {
+                                      onChange={(val) => {
                                         const newExs = [...ssExercises];
-                                        newExs[idx].repDuration = e.target.value === '' ? '' : Number(e.target.value);
+                                        newExs[idx].repDuration = val;
+                                        setSsExercises(newExs);
+                                      }}
+                                      onFocus={() => {
+                                        const newExs = [...ssExercises];
+                                        newExs[idx].repDuration = '';
                                         setSsExercises(newExs);
                                       }}
                                       className={`w-full glass_fill border border-cyan text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                                      placeholder="3"
                                       required
                                     />
                                   </div>
                                   <div>
                                     <label className="block text-xs font-medium text-aquamarine mb-1">Rest Between Reps</label>
-                                    <input 
-                                      type="number" 
-                                      inputMode="numeric"
-                                      min="0"
+                                    <TimeInput 
                                       value={ex.restBetweenReps || ''}
-                                      onChange={(e) => {
+                                      onChange={(val) => {
                                         const newExs = [...ssExercises];
-                                        newExs[idx].restBetweenReps = e.target.value === '' ? '' : Number(e.target.value);
+                                        newExs[idx].restBetweenReps = val;
+                                        setSsExercises(newExs);
+                                      }}
+                                      onFocus={() => {
+                                        const newExs = [...ssExercises];
+                                        newExs[idx].restBetweenReps = '';
                                         setSsExercises(newExs);
                                       }}
                                       className={`w-full glass_fill border border-cyan text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
-                                      placeholder="2"
                                     />
                                   </div>
                                 </div>
@@ -2495,7 +2633,7 @@ export default function App() {
                       className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      Save to Library
+                      {editingLibraryExerciseId ? 'Update Exercise' : 'Save to Library'}
                     </button>
                   )}
                   <button 
@@ -2522,7 +2660,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -2533,9 +2671,10 @@ export default function App() {
                   <div 
                     onClick={() => {
                       setBuilderSource('library');
+                      setEditingLibraryExerciseId(null);
                       setCurrentView('ExerciseBuilder');
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-white/[0.01] backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                     title="Add Exercise"
                   >
                     <Plus className="w-6 h-6 text-aquamarine group-hover:text-white transition-colors" />
@@ -2560,88 +2699,86 @@ export default function App() {
                 ) : (
                   <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                     {exerciseLibrary.map((exercise) => (
-                      <div key={exercise.id} className="p-4 bg-transparent">
-                      <div className="flex justify-between items-start mb-4">
-                        <h4 className="text-lg font-bold text-white">{exercise.name}</h4>
-                        <span className="text-xs font-semibold bg-transparent text-aquamarine px-2 py-1 rounded">
-                          {exercise.type}
-                        </span>
+                      <div key={exercise.id} className="p-3 bg-transparent border border-white/10 rounded-xl flex items-center justify-between gap-2 md:gap-4 cursor-pointer hover:border-cyan/50 transition-colors" onClick={() => editLibraryExercise(exercise)}>
+                        <div className="flex-grow flex items-center gap-2 md:gap-4 overflow-hidden">
+                          <div className="w-1/3 min-w-[80px]">
+                            <span className="text-[10px] font-semibold bg-transparent text-aquamarine px-1.5 py-0.5 rounded block w-max mb-0.5">
+                              {exercise.type}
+                            </span>
+                            <h4 className="text-sm font-bold text-white truncate">
+                              {exercise.name}
+                            </h4>
+                          </div>
+                          
+                          {exercise.type === 'HIIT' && (
+                            <div className="flex items-center gap-2 md:gap-3 text-center flex-grow justify-center">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-yellow font-bold">W</span>
+                                <span className="text-xs font-mono text-white">{exercise.warmup}</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-green font-bold">H</span>
+                                <span className="text-xs font-mono text-white">{exercise.hard}</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-red font-bold">E</span>
+                                <span className="text-xs font-mono text-white">{exercise.easy}</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-blue-500 font-bold">C</span>
+                                <span className="text-xs font-mono text-white">{exercise.cooldown}</span>
+                              </div>
+                              <div className="flex flex-col items-center ml-1 md:ml-2 border-l border-white/10 pl-2 md:pl-3">
+                                <span className="text-[10px] text-aquamarine font-bold">R</span>
+                                <span className="text-xs font-mono text-white">{exercise.rounds}x</span>
+                              </div>
+                            </div>
+                          )}
+                          {exercise.type === 'Set' && (
+                            <div className="flex items-center gap-2 md:gap-3 text-center flex-grow justify-center">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-aquamarine font-bold">S</span>
+                                <span className="text-xs font-mono text-white">{exercise.sets}</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-green font-bold">R</span>
+                                <span className="text-xs font-mono text-white">{exercise.reps}</span>
+                              </div>
+                              <div className="flex flex-col items-center border-l border-white/10 pl-2 md:pl-3">
+                                <span className="text-[10px] text-red font-bold">E</span>
+                                <span className="text-xs font-mono text-white">{exercise.restBetweenSets || 0}</span>
+                              </div>
+                            </div>
+                          )}
+                          {exercise.type === 'Superset' && (
+                            <div className="flex items-center gap-2 md:gap-3 text-center flex-grow justify-center">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-aquamarine font-bold">R</span>
+                                <span className="text-xs font-mono text-white">{exercise.totalSupersets}x</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-green font-bold">Ex</span>
+                                <span className="text-xs font-mono text-white">{exercise.exercises.length}</span>
+                              </div>
+                              <div className="flex flex-col items-center border-l border-white/10 pl-2 md:pl-3">
+                                <span className="text-[10px] text-red font-bold">M</span>
+                                <span className="text-xs font-mono text-white capitalize">{exercise.mode}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExerciseLibrary(exerciseLibrary.filter(e => e.id !== exercise.id));
+                          }}
+                          className="p-1.5 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30 flex-shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      {exercise.type === 'HIIT' ? (
-                        <div className="grid grid-cols-5 gap-2 text-sm text-center">
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-aquamarine/70 text-xs mb-1">Warm</div>
-                            <div className="font-mono">{exercise.warmup}s</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-cyan/70 text-xs mb-1">Hard</div>
-                            <div className="font-mono">{exercise.hard}s</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-teal/70 text-xs mb-1">Easy</div>
-                            <div className="font-mono">{exercise.easy}s</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-cobalt/70 text-xs mb-1">Cool</div>
-                            <div className="font-mono">{exercise.cooldown}s</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-cyan/30">
-                            <div className="text-cyan/70 text-xs mb-1">Rounds</div>
-                            <div className="font-mono">{exercise.rounds}x</div>
-                          </div>
-                        </div>
-                      ) : exercise.type === 'Set' ? (
-                        <div className="grid grid-cols-4 gap-2 text-sm text-center">
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-aquamarine/70 text-xs mb-1">Sets</div>
-                            <div className="font-mono">{exercise.sets}</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-cyan/70 text-xs mb-1">Reps</div>
-                            <div className="font-mono">{exercise.reps}</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-white/5">
-                            <div className="text-teal/70 text-xs mb-1 capitalize">Mode</div>
-                            <div className="font-mono">{exercise.mode}</div>
-                          </div>
-                          <div className="bg-transparent rounded p-2 border border-cyan/30">
-                            <div className="text-cyan/70 text-xs mb-1">Rest</div>
-                            <div className="font-mono">{exercise.restBetweenSets || 0}s</div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-3 gap-2 text-sm text-center">
-                            <div className="bg-transparent rounded p-2 border border-white/5">
-                              <div className="text-aquamarine/70 text-xs mb-1">Rounds</div>
-                              <div className="font-mono">{exercise.totalSupersets}x</div>
-                            </div>
-                            <div className="bg-transparent rounded p-2 border border-white/5">
-                              <div className="text-cyan/70 text-xs mb-1">Exercises</div>
-                              <div className="font-mono">{exercise.exercises.length}</div>
-                            </div>
-                            <div className="bg-transparent rounded p-2 border border-white/5">
-                              <div className="text-teal/70 text-xs mb-1 capitalize">Mode</div>
-                              <div className="font-mono">{exercise.mode}</div>
-                            </div>
-                          </div>
-                          <div className="text-xs text-aquamarine/60 pl-1">
-                            {exercise.exercises.map(e => e.name).join(' • ')}
-                          </div>
-                        </div>
-                      )}
-                        <div className="mt-4 flex justify-end">
-                          <button 
-                            onClick={() => {
-                              setExerciseLibrary(exerciseLibrary.filter(e => e.id !== exercise.id));
-                            }}
-                            className="p-2 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
                 </div>
@@ -2658,7 +2795,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -2704,7 +2841,7 @@ export default function App() {
                 <div ref={containerRef} className="relative z-30 overflow-hidden border border-white/20 rounded-2xl">
                   {/* Background Layer with Mask */}
                   <div 
-                    className="absolute inset-0 glass_fill z-0 backdrop-blur-[1px]"
+                    className="absolute inset-0 glass_fill z-0"
                     style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
                   />
                   {/* Overlay Layer for White Borders */}
@@ -2744,7 +2881,7 @@ export default function App() {
                 </div>
 
                 {/* Container 2: Workout List Section */}
-                <div className="relative z-30 p-6 border border-white/20 rounded-2xl glass_fill backdrop-blur-[1px]">
+                <div className="relative z-30 p-6 border border-white/20 rounded-2xl glass_fill">
                   <div className={`mb-6 ${CONTAINER_BUTTON_CLASS} container-button-hole border border-formula-green rounded-lg p-1`}>
                     <input 
                       type="text" 
@@ -2851,29 +2988,21 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-medium text-aquamarine/60 mb-1">Warmup</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="0"
+                            <TimeInput 
                               value={cbWarmup}
-                              onChange={(e) => setCbWarmup(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setCbWarmup}
                               onFocus={() => setCbWarmup('')}
                               className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                              placeholder="0:60"
                               required
                             />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-aquamarine/60 mb-1">Cooldown</label>
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="0"
+                            <TimeInput 
                               value={cbCooldown}
-                              onChange={(e) => setCbCooldown(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setCbCooldown}
                               onFocus={() => setCbCooldown('')}
                               className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                              placeholder="0:60"
                               required
                             />
                           </div>
@@ -2887,15 +3016,11 @@ export default function App() {
                               className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="-enter name-"
                             />
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="1"
+                            <TimeInput 
                               value={cbHard}
-                              onChange={(e) => setCbHard(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setCbHard}
                               onFocus={() => setCbHard('')}
                               className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                              placeholder="0:60"
                               required
                             />
                           </div>
@@ -2909,15 +3034,11 @@ export default function App() {
                               className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="-enter name-"
                             />
-                            <input 
-                              type="number" 
-                              inputMode="numeric"
-                              min="1"
+                            <TimeInput 
                               value={cbEasy}
-                              onChange={(e) => setCbEasy(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={setCbEasy}
                               onFocus={() => setCbEasy('')}
                               className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                              placeholder="0:60"
                               required
                             />
                           </div>
@@ -2941,28 +3062,28 @@ export default function App() {
                         <div className="space-y-3 pt-4 border-t border-white/10">
                           <h4 className="text-sm font-medium text-aquamarine uppercase tracking-wider">Metronome Settings</h4>
                           {[
-                            { label: 'Warmup', enabled: cbWarmupMetronome, setEnabled: setCbWarmupMetronome, bpm: cbWarmupBpm, setBpm: setCbWarmupBpm },
-                            { label: 'Hard', enabled: cbHardMetronome, setEnabled: setCbHardMetronome, bpm: cbHardBpm, setBpm: setCbHardBpm },
-                            { label: 'Easy', enabled: cbEasyMetronome, setEnabled: setCbEasyMetronome, bpm: cbEasyBpm, setBpm: setCbEasyBpm },
-                            { label: 'Cooldown', enabled: cbCooldownMetronome, setEnabled: setCbCooldownMetronome, bpm: cbCooldownBpm, setBpm: setCbCooldownBpm },
+                            { label: 'Warmup', enabled: cbWarmupMetronome, setEnabled: setCbWarmupMetronome, bpm: cbWarmupBpm, setBpm: setCbWarmupBpm, bgClass: 'bg-yellow', shadowClass: 'shadow-[0_0_10px_rgba(255,255,0,0.5)]', textClass: 'text-black', colorClass: 'text-yellow', borderClass: 'border-yellow' },
+                            { label: 'Hard', enabled: cbHardMetronome, setEnabled: setCbHardMetronome, bpm: cbHardBpm, setBpm: setCbHardBpm, bgClass: 'bg-green', shadowClass: 'shadow-[0_0_10px_rgba(0,255,0,0.5)]', textClass: 'text-black', colorClass: 'text-green', borderClass: 'border-green' },
+                            { label: 'Easy', enabled: cbEasyMetronome, setEnabled: setCbEasyMetronome, bpm: cbEasyBpm, setBpm: setCbEasyBpm, bgClass: 'bg-red', shadowClass: 'shadow-[0_0_10px_rgba(255,0,0,0.5)]', textClass: 'text-white', colorClass: 'text-red', borderClass: 'border-red' },
+                            { label: 'Cooldown', enabled: cbCooldownMetronome, setEnabled: setCbCooldownMetronome, bpm: cbCooldownBpm, setBpm: setCbCooldownBpm, bgClass: 'bg-blue-500', shadowClass: 'shadow-[0_0_10px_rgba(0,0,255,0.5)]', textClass: 'text-white', colorClass: 'text-blue-500', borderClass: 'border-blue-500' },
                           ].map((p) => (
                             <div key={p.label} className="flex items-center justify-between p-3 bg-transparent rounded-xl border border-white/10">
                               <button
                                 type="button"
                                 onClick={() => p.setEnabled(!p.enabled)}
-                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${p.enabled ? 'bg-cobalt text-white shadow-[0_0_10px_rgba(0,71,171,0.5)]' : 'bg-transparent text-white/40'}`}
+                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${p.enabled ? `${p.bgClass} ${p.textClass} ${p.shadowClass}` : 'bg-transparent text-white/40'}`}
                               >
                                 {p.label}
                               </button>
                               {p.enabled && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-aquamarine/60 uppercase">BPM</span>
+                                  <span className={`text-[10px] ${p.colorClass} uppercase font-bold`}>BPM</span>
                                   <input
                                     type="number" inputMode="numeric" pattern="[0-9]*"
                                     value={p.bpm}
                                     onChange={(e) => p.setBpm(e.target.value === '' ? '' : Number(e.target.value))}
                                     onFocus={() => p.setBpm('')}
-                                    className="w-16 bg-transparent border border-white/20 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan"
+                                    className={`w-16 bg-transparent border ${p.borderClass} ${p.colorClass} rounded px-2 py-1 text-xs focus:outline-none transition-all text-center`}
                                   />
                                 </div>
                               )}
@@ -3049,15 +3170,11 @@ export default function App() {
                               {cbUseRepDuration && (
                                 <div>
                                   <label className="block text-xs font-medium text-aquamarine/60 mb-1">Rep Duration</label>
-                                  <input 
-                                    type="number" 
-                                    inputMode="numeric"
-                                    min="1"
+                                  <TimeInput 
                                     value={cbRepDuration}
-                                    onChange={(e) => setCbRepDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                                    onChange={setCbRepDuration}
                                     onFocus={() => setCbRepDuration('')}
                                     className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                                    placeholder="0:60"
                                     required
                                   />
                                 </div>
@@ -3065,15 +3182,11 @@ export default function App() {
                               {cbUseRestBetweenReps && (
                                 <div>
                                   <label className="block text-xs font-medium text-aquamarine/60 mb-1">Rest Between Reps</label>
-                                  <input 
-                                    type="number" 
-                                    inputMode="numeric"
-                                    min="1"
+                                  <TimeInput 
                                     value={cbRestBetweenReps}
-                                    onChange={(e) => setCbRestBetweenReps(e.target.value === '' ? '' : Number(e.target.value))}
+                                    onChange={setCbRestBetweenReps}
                                     onFocus={() => setCbRestBetweenReps('')}
                                     className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                                    placeholder="0:60"
                                     required
                                   />
                                 </div>
@@ -3081,15 +3194,11 @@ export default function App() {
                               {cbUseRestBetweenSets && (
                                 <div>
                                   <label className="block text-xs font-medium text-aquamarine/60 mb-1">Rest Between Sets</label>
-                                  <input 
-                                    type="number" 
-                                    inputMode="numeric"
-                                    min="1"
+                                  <TimeInput 
                                     value={cbRestBetweenSets}
-                                    onChange={(e) => setCbRestBetweenSets(e.target.value === '' ? '' : Number(e.target.value))}
+                                    onChange={setCbRestBetweenSets}
                                     onFocus={() => setCbRestBetweenSets('')}
                                     className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                                    placeholder="0:60"
                                     required
                                   />
                                 </div>
@@ -3136,28 +3245,20 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className="block text-xs font-medium text-aquamarine/60 mb-1">Exercise Transition</label>
-                              <input 
-                                type="number" 
-                                inputMode="numeric"
-                                min="0"
+                              <TimeInput 
                                 value={cbSsExerciseTransition}
-                                onChange={(e) => setCbSsExerciseTransition(e.target.value === '' ? '' : Number(e.target.value))}
+                                onChange={setCbSsExerciseTransition}
                                 onFocus={() => setCbSsExerciseTransition('')}
                                 className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                                placeholder="Duration (sec)"
                               />
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-aquamarine/60 mb-1">Superset Rest</label>
-                              <input 
-                                type="number" 
-                                inputMode="numeric"
-                                min="0"
+                              <TimeInput 
                                 value={cbSsSupersetTransition}
-                                onChange={(e) => setCbSsSupersetTransition(e.target.value === '' ? '' : Number(e.target.value))}
+                                onChange={setCbSsSupersetTransition}
                                 onFocus={() => setCbSsSupersetTransition('')}
                                 className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                                placeholder="Duration (sec)"
                               />
                             </div>
                           </div>
@@ -3245,14 +3346,11 @@ export default function App() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <label className="block text-xs font-medium text-aquamarine/60 mb-1">Rep Duration</label>
-                                      <input 
-                                        type="number" 
-                                        inputMode="numeric"
-                                        min="1"
+                                      <TimeInput 
                                         value={ex.repDuration || ''}
-                                        onChange={(e) => {
+                                        onChange={(val) => {
                                           const newExs = [...cbSsExercises];
-                                          newExs[idx].repDuration = e.target.value === '' ? '' : Number(e.target.value);
+                                          newExs[idx].repDuration = val;
                                           setCbSsExercises(newExs);
                                         }}
                                         onFocus={() => {
@@ -3261,20 +3359,16 @@ export default function App() {
                                           setCbSsExercises(newExs);
                                         }}
                                         className="w-full glass_fill border border-white/20 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-cyan transition-all"
-                                        placeholder="0:60"
                                         required
                                       />
                                     </div>
                                     <div>
                                       <label className="block text-xs font-medium text-aquamarine/60 mb-1">Rest Between Reps</label>
-                                      <input 
-                                        type="number" 
-                                        inputMode="numeric"
-                                        min="0"
+                                      <TimeInput 
                                         value={ex.restBetweenReps || ''}
-                                        onChange={(e) => {
+                                        onChange={(val) => {
                                           const newExs = [...cbSsExercises];
-                                          newExs[idx].restBetweenReps = e.target.value === '' ? '' : Number(e.target.value);
+                                          newExs[idx].restBetweenReps = val;
                                           setCbSsExercises(newExs);
                                         }}
                                         onFocus={() => {
@@ -3283,7 +3377,6 @@ export default function App() {
                                           setCbSsExercises(newExs);
                                         }}
                                         className="w-full glass_fill border border-white/20 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-cyan transition-all"
-                                        placeholder="0:60"
                                       />
                                     </div>
                                 </div>
@@ -3367,6 +3460,22 @@ export default function App() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Custom Alert Modal */}
+      {customAlert.show && (
+        <div className="fixed inset-0 glass_fill flex items-center justify-center z-[60] p-4">
+          <div className="w-full max-w-sm text-center p-8 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-xl">
+            <h3 className="text-xl font-bold text-white mb-6">
+              {customAlert.message}
+            </h3>
+            <button 
+              onClick={() => setCustomAlert({ show: false, message: '' })} 
+              className="px-8 py-2 rounded-lg bg-transparent hover:bg-cyan/40 text-cyan border border-cyan/50 transition-colors font-bold uppercase tracking-wider"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
