@@ -118,3 +118,12 @@ body {
   background: rgba(0, 255, 255, 0.8);
 }
 
+@utility glass_fill {
+  background-color: transparent;
+  backdrop-filter: blur(1.5px);
+}
+
+@utility no-blur {
+  backdrop-filter: none !important;
+}
+

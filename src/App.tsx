@@ -108,8 +108,9 @@ export interface WorkoutItem {
 
 type Phase = 'Warmup' | 'Hard' | 'Easy' | 'Cooldown' | 'Set_Active' | 'Set_Rest' | 'Set_RepRest' | 'Superset_Active' | 'Superset_ExerciseRest' | 'Superset_RoundRest' | null;
 
-const TOOLBAR_BUTTON_CLASS = "bg-transparent border border-white/[0.03] hover:bg-transparent transition-all duration-300";
-const CONTAINER_BUTTON_CLASS = "bg-transparent hover:bg-transparent transition-all duration-300";
+const TOOLBAR_BUTTON_CLASS = "bg-transparent border border-transparent hover:bg-transparent transition-all duration-300";
+const CONTAINER_BUTTON_CLASS = "bg-transparent hover:bg-transparent transition-all duration-300 no-blur";
+const GLASS_FILL = "glass_fill";
 
 const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, currentPhase: Phase, currentRound: number, currentRep: number = 1, currentSubIndex: number = 0): { index: number, phase: Phase, round: number, rep: number, subIndex: number, time: number } | null => {
   let idx = currentIndex;
@@ -639,14 +640,14 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
     // But for clarity in this block, we can use the derived values.
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-absolute-void p-4 relative overflow-hidden">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-transparent p-4 relative overflow-hidden">
         <CosmicFlow phase={null} isPaused={false} timeLeft={0} />
         <div className="relative z-20 flex flex-col items-center w-full max-w-md">
           <h2 className="text-2xl md:text-3xl font-black mb-2 bg-gradient-to-r from-cyan to-aquamarine text-transparent bg-clip-text uppercase tracking-widest drop-shadow-[0_0_15px_rgba(0,255,255,0.6)]">
             Up Next:
           </h2>
           
-          <div className="w-full text-center mt-4 mb-8 border-white/10 p-4">
+          <div className="w-full text-center mt-4 mb-8 border-white/10 p-4 glass_fill rounded-2xl border">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]">
               {nextEx.name}
             </h1>
@@ -748,7 +749,7 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
   if (status === 'countdown') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-midnight relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center bg-transparent relative overflow-hidden">
         <CosmicFlow phase={null} isPaused={false} timeLeft={0} />
         <h1 className="text-8xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan to-aquamarine animate-pulse drop-shadow-[0_0_40px_rgba(0,255,255,0.9)] relative z-20">
           {countdownText}
@@ -759,7 +760,7 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
   if (status === 'finished') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-midnight p-6 relative overflow-hidden">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-transparent p-6 relative overflow-hidden">
         <CosmicFlow phase={null} isPaused={false} timeLeft={0} />
         <div className="relative z-20 flex flex-col items-center">
           <h1 className="text-6xl md:text-8xl font-black text-teal mb-8 drop-shadow-[0_0_30px_rgba(0,128,128,0.7)] text-center">
@@ -842,7 +843,7 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
   return (
     <div 
-      className={`min-h-screen bg-absolute-void flex flex-col p-4 relative overflow-hidden border-8 transition-colors duration-500 ${borderPulseClass}`}
+      className={`min-h-screen bg-transparent flex flex-col p-4 relative overflow-hidden border-8 transition-colors duration-500 ${borderPulseClass}`}
     >
       <CosmicFlow 
         phase={phase} 
@@ -891,13 +892,13 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
       {/* 2. Text Boxes */}
       <div className="relative z-20 flex flex-col items-center w-full mt-2">
-        <div className="border border-black bg-transparent px-2 py-0.5 mb-1">
+        <div className="border border-white/20 glass_fill px-4 py-1 mb-1 rounded-lg">
           <h2 className="text-lg font-bold text-white">
             {isSuperset && supersetDetails ? supersetDetails.exercises[subExerciseIndex].name : currentEx.name}
           </h2>
         </div>
         
-        <div className="border border-black bg-transparent px-2 py-0.5 mb-2">
+        <div className="border border-white/20 glass_fill px-4 py-1 mb-2 rounded-lg">
           {isSet && setDetails ? (
             <div className="text-sm text-white font-mono">
               SET {round} / {setDetails.sets} — REP {rep} / {setDetails.reps}
@@ -1003,7 +1004,7 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       </div>
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-[1.5px] flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
           <div className="w-full max-sm text-center">
             <h3 className="text-2xl font-bold text-white mb-4">Are you sure?</h3>
             <p className="text-aquamarine/60 mb-8">
@@ -1280,7 +1281,7 @@ export default function App() {
       <div ref={setNodeRef} style={style}>
         <div className="p-3 cursor-pointer" onClick={() => editExercise(item)}>
           <div className="flex items-center gap-3">
-            <div className="text-white/20 cursor-grab" {...attributes} {...listeners}>
+            <div className="text-aquamarine cursor-grab" {...attributes} {...listeners}>
               <GripVertical className="w-5 h-5" />
             </div>
             <span className="text-aquamarine text-sm font-mono w-6 text-center">{index + 1}.</span>
@@ -1708,7 +1709,7 @@ export default function App() {
       // In an SVG mask, black hides and white shows.
       // We want the background to be white (show blur) and buttons to be black (hide blur/create hole).
       maskRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="black" />`;
-      borderRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="none" stroke="white" stroke-width="1" />`;
+      borderRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="none" stroke="transparent" stroke-width="1" />`;
     });
 
     // We use a mask definition to subtract the button areas from a solid white rectangle.
@@ -1735,7 +1736,12 @@ export default function App() {
     updateButtonHoles();
     const timer = setTimeout(updateButtonHoles, 50);
     return () => clearTimeout(timer);
-  }, [currentView, customBuilderType, builderType, currentWorkout, updateButtonHoles]);
+  }, [
+    currentView, customBuilderType, builderType, currentWorkout, updateButtonHoles, 
+    setMode, setUseRepDuration, setUseRestBetweenReps, setUseRestBetweenSets, 
+    ssMode, ssExercises,
+    warmupMetronome, hardMetronome, easyMetronome, cooldownMetronome
+  ]);
 
   useEffect(() => {
     window.addEventListener('resize', updateButtonHoles);
@@ -1785,7 +1791,7 @@ export default function App() {
                   <AccretionDisk size={112} color="#00E676" />
                   <div 
                     onClick={() => setCurrentView('Workouts')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-28 h-28 rounded-full border border-formula-green bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,230,118,0.2)] hover:shadow-[0_0_25px_rgba(0,230,118,0.4)]"
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-28 h-28 rounded-full border border-formula-green bg-transparent backdrop-blur-[1px] hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,230,118,0.2)] hover:shadow-[0_0_25px_rgba(0,230,118,0.4)] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]"
                   >
                     <ListPlus className="w-8 h-8 mb-1 text-formula-green group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]" />
                     <h2 className="text-xs font-bold text-white group-hover:text-formula-green transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center">
@@ -1801,7 +1807,7 @@ export default function App() {
                   <AccretionDisk size={96} color="#967BB6" />
                   <div 
                     onClick={() => setCurrentView('WorkoutPlanner')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-nebula-lavender bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(150,123,182,0.2)] hover:shadow-[0_0_25px_rgba(150,123,182,0.4)]"
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-nebula-lavender bg-transparent backdrop-blur-[1px] hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(150,123,182,0.2)] hover:shadow-[0_0_25px_rgba(150,123,182,0.4)] drop-shadow-[0_0_8px_rgba(150,123,182,0.4)]"
                   >
                     <ClipboardList className="w-6 h-6 mb-1 text-nebula-lavender group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(150,123,182,0.3)]" />
                     <h2 className="text-[9px] font-bold text-white group-hover:text-nebula-lavender transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center leading-tight max-w-[60px]">
@@ -1816,7 +1822,7 @@ export default function App() {
                   <AccretionDisk size={96} color="#00E5FF" />
                   <div 
                     onClick={() => setCurrentView('ExerciseLibrary')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-cyan bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)]"
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-cyan bg-transparent backdrop-blur-[1px] hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]"
                   >
                     <Book className="w-6 h-6 mb-1 text-cyan group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(0,229,255,0.3)]" />
                     <h2 className="text-[9px] font-bold text-white group-hover:text-cyan transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center leading-tight max-w-[60px]">
@@ -1837,7 +1843,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -1851,7 +1857,7 @@ export default function App() {
                       setWorkoutName('');
                       setCurrentView('WorkoutPlanner');
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
                     title="Add New Workout"
                   >
                     <Plus className="w-6 h-6 text-aquamarine group-hover:text-white group-hover:scale-110 transition-all duration-300 drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]" />
@@ -1866,7 +1872,7 @@ export default function App() {
                 <p className="text-aquamarine/60 text-sm tracking-[0.2em] uppercase mt-1">Your Training Archive</p>
               </div>
 
-              <div className="relative z-30 p-6 border border-white rounded-2xl bg-black/40 backdrop-blur-md">
+              <div className="relative z-30 p-6 border border-white/20 rounded-2xl backdrop-blur-[1px]">
                 {savedWorkouts.length === 0 ? (
                   <div className="flex justify-center py-4">
                     <div className="relative">
@@ -1895,7 +1901,7 @@ export default function App() {
                               setWorkoutName(workout.name);
                               setCurrentView('WorkoutPlanner');
                             }}
-                            className={`flex-1 bg-transparent backdrop-blur-none hover:bg-transparent border border-cobalt/50 text-aquamarine py-2 rounded-lg transition-colors flex justify-center items-center ${CONTAINER_BUTTON_CLASS}`}
+                            className={`flex-1 bg-transparent no-blur hover:bg-transparent border border-cobalt/50 text-aquamarine py-2 rounded-lg transition-colors flex justify-center items-center ${CONTAINER_BUTTON_CLASS}`}
                           >
                             <Play className="w-4 h-4 mr-2" /> Load
                           </button>
@@ -1903,7 +1909,7 @@ export default function App() {
                             onClick={() => {
                               setSavedWorkouts(savedWorkouts.filter(w => w.id !== workout.id));
                             }}
-                            className={`p-2 text-stellar-ember hover:text-stellar-ember/80 bg-transparent backdrop-blur-none hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30 ${CONTAINER_BUTTON_CLASS}`}
+                            className={`p-2 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30 ${CONTAINER_BUTTON_CLASS}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1925,7 +1931,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -1936,7 +1942,7 @@ export default function App() {
                     <AccretionDisk size={56} color="#00E5FF" />
                     <div 
                       onClick={() => setCurrentView('ExerciseLibrary')}
-                      className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-cyan bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(0,229,255,0.2)] hover:shadow-[0_0_20px_rgba(0,229,255,0.4)]"
+                      className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-cyan bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(0,229,255,0.2)] hover:shadow-[0_0_20px_rgba(0,229,255,0.4)]"
                       title="Exercise Library"
                     >
                       <Book className="w-5 h-5 text-cyan group-hover:text-white transition-colors" />
@@ -1951,12 +1957,12 @@ export default function App() {
                 </h2>
               </div>
 
-              <div ref={containerRef} className="max-w-2xl mx-auto relative z-30 overflow-hidden border border-white rounded-2xl">
+              <div ref={containerRef} className="max-w-2xl mx-auto relative z-30 overflow-hidden border border-white/20 rounded-2xl">
                 {/* Background Layer with Mask */}
-                <div 
-                  className="absolute inset-0 bg-black/40 backdrop-blur-md z-0"
-                  style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
-                />
+                  <div 
+                    className="absolute inset-0 glass_fill z-0 backdrop-blur-[1px]"
+                    style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
+                  />
                 {/* Overlay Layer for White Borders */}
                 <div 
                   className="absolute inset-0 z-50 pointer-events-none"
@@ -2005,7 +2011,7 @@ export default function App() {
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           onFocus={() => setName('')}
-                          className="bg-transparent border border-white/20 text-white rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                          className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                           placeholder="-enter name-"
                           required
                         />
@@ -2021,7 +2027,7 @@ export default function App() {
                               value={warmup}
                               onChange={(e) => setWarmup(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setWarmup('')}
-                              className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                               placeholder="0:60"
                               required
                             />
@@ -2035,7 +2041,7 @@ export default function App() {
                               value={cooldown}
                               onChange={(e) => setCooldown(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCooldown('')}
-                              className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                               placeholder="0:60"
                               required
                             />
@@ -2049,7 +2055,7 @@ export default function App() {
                               value={hard}
                               onChange={(e) => setHard(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setHard('')}
-                              className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                               placeholder="0:60"
                               required
                             />
@@ -2063,7 +2069,7 @@ export default function App() {
                               value={easy}
                               onChange={(e) => setEasy(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setEasy('')}
-                              className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                               placeholder="0:60"
                               required
                             />
@@ -2079,7 +2085,7 @@ export default function App() {
                           value={rounds}
                           onChange={(e) => setRounds(e.target.value === '' ? '' : Number(e.target.value))}
                           onFocus={() => setRounds('')}
-                          className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                          className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                           placeholder="5"
                           required
                         />
@@ -2093,17 +2099,17 @@ export default function App() {
                           { label: 'Easy', enabled: easyMetronome, setEnabled: setEasyMetronome, bpm: easyBpm, setBpm: setEasyBpm },
                           { label: 'Cooldown', enabled: cooldownMetronome, setEnabled: setCooldownMetronome, bpm: cooldownBpm, setBpm: setCooldownBpm },
                         ].map((p) => (
-                          <div key={p.label} className="flex items-center justify-between p-3 bg-transparent rounded-xl border border-white/10">
-                            <button
-                              type="button"
-                              onClick={() => p.setEnabled(!p.enabled)}
-                              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${p.enabled ? 'bg-cobalt text-white shadow-[0_0_10px_rgba(0,71,171,0.5)]' : 'bg-transparent text-white/40'}`}
-                            >
+                          <div 
+                            key={p.label} 
+                            onClick={() => p.setEnabled(!p.enabled)}
+                            className={`flex items-center justify-between p-3 bg-transparent rounded-xl border transition-all cursor-pointer ${p.enabled ? 'border-cobalt shadow-[0_0_15px_rgba(0,71,171,0.2)]' : 'border-white/10'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                          >
+                            <span className={`text-xs font-bold uppercase tracking-wider transition-all ${p.enabled ? 'text-white' : 'text-white/40'}`}>
                               {p.label}
-                            </button>
+                            </span>
                             {p.enabled && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-aquamarine uppercase">BPM</span>
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-[10px] text-aquamarine uppercase font-bold">BPM</span>
                                 <input
                                   type="number"
                                   inputMode="numeric"
@@ -2111,7 +2117,7 @@ export default function App() {
                                   value={p.bpm}
                                   onChange={(e) => p.setBpm(e.target.value === '' ? '' : Number(e.target.value))}
                                   onFocus={() => p.setBpm('')}
-                                  className="w-16 bg-transparent border border-white/20 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan"
+                                  className="w-16 bg-transparent border border-cyan/30 text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan transition-all text-center"
                                 />
                               </div>
                             )}
@@ -2130,7 +2136,7 @@ export default function App() {
                           value={setNameState}
                           onChange={(e) => setSetNameState(e.target.value)}
                           onFocus={() => setSetNameState('')}
-                          className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                          className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                           placeholder="-enter name-"
                           required
                         />
@@ -2146,7 +2152,7 @@ export default function App() {
                             value={setSets}
                             onChange={(e) => setSetSets(e.target.value === '' ? '' : Number(e.target.value))}
                             onFocus={() => setSetSets('')}
-                            className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                            className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                             placeholder="3"
                             required
                           />
@@ -2160,7 +2166,7 @@ export default function App() {
                             value={setReps}
                             onChange={(e) => setSetReps(e.target.value === '' ? '' : Number(e.target.value))}
                             onFocus={() => setSetReps('')}
-                            className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                            className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                             placeholder="10"
                             required
                           />
@@ -2175,7 +2181,7 @@ export default function App() {
                               key={m}
                               type="button"
                               onClick={() => setSetMode(m)}
-                              className={`flex-1 py-2 rounded-lg border transition-colors capitalize backdrop-blur-none ${setMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
+                              className={`flex-1 py-2 rounded-lg border transition-colors capitalize no-blur ${setMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                             >
                               {m}
                             </button>
@@ -2189,21 +2195,21 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => setSetUseRepDuration(!setUseRepDuration)}
-                              className={`flex-1 py-2 text-xs rounded-lg border transition-colors backdrop-blur-none ${setUseRepDuration ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
+                              className={`flex-1 py-2 text-xs rounded-lg border transition-colors no-blur ${setUseRepDuration ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                             >
                               Rep Duration
                             </button>
                             <button
                               type="button"
                               onClick={() => setSetUseRestBetweenReps(!setUseRestBetweenReps)}
-                              className={`flex-1 py-2 text-xs rounded-lg border transition-colors backdrop-blur-none ${setUseRestBetweenReps ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
+                              className={`flex-1 py-2 text-xs rounded-lg border transition-colors no-blur ${setUseRestBetweenReps ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                             >
                               Rest Between Reps
                             </button>
                             <button
                               type="button"
                               onClick={() => setSetUseRestBetweenSets(!setUseRestBetweenSets)}
-                              className={`flex-1 py-2 text-xs rounded-lg border transition-colors backdrop-blur-none ${setUseRestBetweenSets ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
+                              className={`flex-1 py-2 text-xs rounded-lg border transition-colors no-blur ${setUseRestBetweenSets ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                             >
                               Rest Between Sets
                             </button>
@@ -2220,7 +2226,7 @@ export default function App() {
                                   value={setRepDuration}
                                   onChange={(e) => setSetRepDuration(e.target.value === '' ? '' : Number(e.target.value))}
                                   onFocus={() => setSetRepDuration('')}
-                                  className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                  className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                   placeholder="0:60"
                                   required
                                 />
@@ -2236,7 +2242,7 @@ export default function App() {
                                   value={setRestBetweenReps}
                                   onChange={(e) => setSetRestBetweenReps(e.target.value === '' ? '' : Number(e.target.value))}
                                   onFocus={() => setSetRestBetweenReps('')}
-                                  className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                  className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                   placeholder="0:60"
                                   required
                                 />
@@ -2252,7 +2258,7 @@ export default function App() {
                                   value={setRestBetweenSets}
                                   onChange={(e) => setSetRestBetweenSets(e.target.value === '' ? '' : Number(e.target.value))}
                                   onFocus={() => setSetRestBetweenSets('')}
-                                  className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                  className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                   placeholder="0:60"
                                   required
                                 />
@@ -2273,7 +2279,7 @@ export default function App() {
                           value={ssName}
                           onChange={(e) => setSsName(e.target.value)}
                           onFocus={() => setSsName('')}
-                          className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                          className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                           placeholder="-enter name-"
                           required
                         />
@@ -2288,7 +2294,7 @@ export default function App() {
                           value={ssTotalSupersets}
                           onChange={(e) => setSsTotalSupersets(e.target.value === '' ? '' : Number(e.target.value))}
                           onFocus={() => setSsTotalSupersets('')}
-                          className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                          className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                           placeholder="3"
                           required
                         />
@@ -2302,7 +2308,7 @@ export default function App() {
                               key={m}
                               type="button"
                               onClick={() => setSsMode(m)}
-                              className={`flex-1 py-2 rounded-lg border transition-colors capitalize backdrop-blur-none ${ssMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
+                              className={`flex-1 py-2 rounded-lg border transition-colors capitalize no-blur ${ssMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                             >
                               {m}
                             </button>
@@ -2321,7 +2327,7 @@ export default function App() {
                               value={ssExerciseTransition}
                               onChange={(e) => setSsExerciseTransition(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setSsExerciseTransition('')}
-                              className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                               placeholder="0:60"
                             />
                           </div>
@@ -2334,7 +2340,7 @@ export default function App() {
                               value={ssSupersetTransition}
                               onChange={(e) => setSsSupersetTransition(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setSsSupersetTransition('')}
-                              className="w-full bg-transparent border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className={`w-full bg-transparent border border-cyan text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-aquamarine focus:ring-1 focus:ring-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                               placeholder="0:60"
                             />
                           </div>
@@ -2370,7 +2376,7 @@ export default function App() {
                                         newExs[idx].name = '';
                                         setSsExercises(newExs);
                                       }}
-                                      className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-cyan transition-all"
+                                      className={`w-full glass_fill border border-cyan text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                       placeholder="-enter name-"
                                       required
                                     />
@@ -2392,7 +2398,7 @@ export default function App() {
                                         newExs[idx].reps = '';
                                         setSsExercises(newExs);
                                       }}
-                                      className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-cyan transition-all"
+                                      className={`w-full glass_fill border border-cyan text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                       placeholder="12"
                                       required
                                     />
@@ -2411,7 +2417,7 @@ export default function App() {
                                         newExs[idx].mode = m;
                                         setSsExercises(newExs);
                                       }}
-                                      className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize backdrop-blur-none ${ex.mode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
+                                      className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize no-blur ${ex.mode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'} ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                                     >
                                       {m}
                                     </button>
@@ -2433,7 +2439,7 @@ export default function App() {
                                         newExs[idx].repDuration = e.target.value === '' ? '' : Number(e.target.value);
                                         setSsExercises(newExs);
                                       }}
-                                      className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan transition-all"
+                                      className={`w-full glass_fill border border-cyan text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                       placeholder="3"
                                       required
                                     />
@@ -2450,7 +2456,7 @@ export default function App() {
                                         newExs[idx].restBetweenReps = e.target.value === '' ? '' : Number(e.target.value);
                                         setSsExercises(newExs);
                                       }}
-                                      className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan transition-all"
+                                      className={`w-full glass_fill border border-cyan text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-aquamarine transition-all ${CONTAINER_BUTTON_CLASS} container-button-hole text-center`}
                                       placeholder="2"
                                     />
                                   </div>
@@ -2462,7 +2468,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setSsExercises([...ssExercises, { id: crypto.randomUUID(), name: '', reps: '', mode: 'manual' }])}
-                            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-cobalt/30 bg-transparent backdrop-blur-none hover:bg-transparent text-aquamarine transition-all group ${CONTAINER_BUTTON_CLASS}`}
+                            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-cobalt/30 bg-transparent no-blur hover:bg-transparent text-aquamarine transition-all group ${CONTAINER_BUTTON_CLASS}`}
                           >
                             <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             <span className="font-bold tracking-wide">Add Exercise to Superset</span>
@@ -2477,7 +2483,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => handleUnifiedSave('workout')}
-                      className={`w-40 bg-transparent backdrop-blur-none text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                     >
                       <Save className="w-4 h-4 mr-2" />
                       Save & Workout
@@ -2486,7 +2492,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => handleUnifiedSave('library')}
-                      className={`w-40 bg-transparent backdrop-blur-none text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                     >
                       <Save className="w-4 h-4 mr-2" />
                       Save to Library
@@ -2495,7 +2501,7 @@ export default function App() {
                   <button 
                     type="button"
                     onClick={() => handleUnifiedSave('new')}
-                    className={`w-40 bg-transparent backdrop-blur-none text-cyan hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-cyan ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                    className={`w-40 bg-transparent no-blur text-cyan hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-cyan ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Save & New
@@ -2516,7 +2522,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -2529,7 +2535,7 @@ export default function App() {
                       setBuilderSource('library');
                       setCurrentView('ExerciseBuilder');
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
                     title="Add Exercise"
                   >
                     <Plus className="w-6 h-6 text-aquamarine group-hover:text-white transition-colors" />
@@ -2544,7 +2550,7 @@ export default function App() {
                 <p className="text-aquamarine/60 text-sm tracking-[0.2em] uppercase mt-1">Your Movement Catalog</p>
               </div>
 
-              <div className="relative z-30 p-6 border border-white rounded-2xl bg-black/40 backdrop-blur-md">
+              <div className="relative z-30 p-6 border border-white/20 rounded-2xl glass_fill backdrop-blur-[0.75px]">
                 <div className="space-y-6">
                 {exerciseLibrary.length === 0 ? (
                   <div className="text-center py-12">
@@ -2629,7 +2635,7 @@ export default function App() {
                             onClick={() => {
                               setExerciseLibrary(exerciseLibrary.filter(e => e.id !== exercise.id));
                             }}
-                            className="p-2 text-stellar-ember hover:text-stellar-ember/80 bg-transparent backdrop-blur-none hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30"
+                            className="p-2 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -2652,7 +2658,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-2">
                 <div 
                   onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
+                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)]"
                 >
                   <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
@@ -2679,7 +2685,7 @@ export default function App() {
                         }
                       }
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-aquamarine bg-transparent backdrop-blur-none hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] disabled:opacity-50"
+                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] disabled:opacity-50"
                     title="Save Workout"
                   >
                     <Save className="w-5 h-5 text-aquamarine group-hover:text-white transition-colors" />
@@ -2695,10 +2701,10 @@ export default function App() {
 
               <div className="space-y-6">
                 {/* Container 1: Add an Exercise */}
-                <div ref={containerRef} className="relative z-30 overflow-hidden border border-white rounded-2xl">
+                <div ref={containerRef} className="relative z-30 overflow-hidden border border-white/20 rounded-2xl">
                   {/* Background Layer with Mask */}
                   <div 
-                    className="absolute inset-0 bg-black/40 backdrop-blur-md z-0"
+                    className="absolute inset-0 glass_fill z-0 backdrop-blur-[1px]"
                     style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
                   />
                   {/* Overlay Layer for White Borders */}
@@ -2738,20 +2744,22 @@ export default function App() {
                 </div>
 
                 {/* Container 2: Workout List Section */}
-                <div className="relative z-30 p-6 border border-white rounded-2xl bg-black/40 backdrop-blur-md">
-                  <input 
-                    type="text" 
-                    value={workoutName}
-                    onChange={(e) => setWorkoutName(e.target.value)}
-                    className="bg-transparent border-b-2 border-cobalt/50 text-xl font-bold text-white px-1 py-1 focus:outline-none focus:border-cyan transition-colors placeholder:text-white/20 w-full mb-6 text-center"
-                    placeholder="Exercise"
-                  />
+                <div className="relative z-30 p-6 border border-white/20 rounded-2xl glass_fill backdrop-blur-[1px]">
+                  <div className={`mb-6 ${CONTAINER_BUTTON_CLASS} container-button-hole border border-formula-green rounded-lg p-1`}>
+                    <input 
+                      type="text" 
+                      value={workoutName}
+                      onChange={(e) => setWorkoutName(e.target.value)}
+                      className="bg-transparent text-xl font-bold text-white px-4 py-2 focus:outline-none placeholder:text-white/20 w-full text-center"
+                      placeholder="Workout Name"
+                    />
+                  </div>
 
                   <div className="space-y-4">
                     {currentWorkout.length === 0 ? (
                       <div className="text-center py-8">
-                        <ClipboardList className="w-12 h-12 mx-auto text-white/20 mb-4" />
-                        <p className="text-aquamarine/60">Your workout is empty. Add exercises to begin.</p>
+                        <ClipboardList className="w-12 h-12 mx-auto text-aquamarine mb-4" />
+                        <p className="text-aquamarine">Your workout is empty. Add exercises to begin.</p>
                       </div>
                     ) : (
                       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -2776,7 +2784,7 @@ export default function App() {
 
             {/* Library Modal Overlay */}
             {showLibrary && (
-              <div className="fixed inset-0 bg-transparent backdrop-blur-[1.5px] flex items-center justify-center z-50 p-4">
+              <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
                 <div className="w-full max-w-2xl max-h-[80vh] flex flex-col p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-cyan">Select Exercise</h3>
@@ -2801,7 +2809,7 @@ export default function App() {
                           </div>
                           <button 
                             onClick={() => addFromLibrary(ex)}
-                            className={`bg-transparent backdrop-blur-none hover:bg-transparent text-cyan border border-cyan/30 px-4 py-2 rounded-lg transition-colors flex items-center ${CONTAINER_BUTTON_CLASS}`}
+                            className={`bg-transparent no-blur hover:bg-transparent text-cyan border border-cyan/30 px-4 py-2 rounded-lg transition-colors flex items-center ${CONTAINER_BUTTON_CLASS}`}
                           >
                             <Plus className="w-4 h-4 mr-2" /> Add
                           </button>
@@ -2815,7 +2823,7 @@ export default function App() {
 
             {/* Custom Builder Modal Overlay */}
             {customBuilderType && (
-              <div className="fixed inset-0 bg-transparent backdrop-blur-[1.5px] flex items-center justify-center z-50 p-4">
+              <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
                 <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-cyan">Design {customBuilderType} Exercise</h3>
@@ -2832,7 +2840,7 @@ export default function App() {
                         value={cbName}
                         onChange={(e) => setCbName(e.target.value)}
                         onFocus={() => setCbName('')}
-                        className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                        className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                         placeholder="-enter name-"
                         required
                       />
@@ -2850,7 +2858,7 @@ export default function App() {
                               value={cbWarmup}
                               onChange={(e) => setCbWarmup(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbWarmup('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="0:60"
                               required
                             />
@@ -2864,7 +2872,7 @@ export default function App() {
                               value={cbCooldown}
                               onChange={(e) => setCbCooldown(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbCooldown('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="0:60"
                               required
                             />
@@ -2876,7 +2884,7 @@ export default function App() {
                               value={cbHardName}
                               onChange={(e) => setCbHardName(e.target.value)}
                               onFocus={() => setCbHardName('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="-enter name-"
                             />
                             <input 
@@ -2886,7 +2894,7 @@ export default function App() {
                               value={cbHard}
                               onChange={(e) => setCbHard(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbHard('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="0:60"
                               required
                             />
@@ -2898,7 +2906,7 @@ export default function App() {
                               value={cbEasyName}
                               onChange={(e) => setCbEasyName(e.target.value)}
                               onFocus={() => setCbEasyName('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="-enter name-"
                             />
                             <input 
@@ -2908,7 +2916,7 @@ export default function App() {
                               value={cbEasy}
                               onChange={(e) => setCbEasy(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbEasy('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="0:60"
                               required
                             />
@@ -2924,7 +2932,7 @@ export default function App() {
                             value={cbRounds}
                             onChange={(e) => setCbRounds(e.target.value === '' ? '' : Number(e.target.value))}
                             onFocus={() => setCbRounds('')}
-                            className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                            className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                             placeholder="5"
                             required
                           />
@@ -2974,7 +2982,7 @@ export default function App() {
                               value={cbSets}
                               onChange={(e) => setCbSets(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbSets('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="3"
                               required
                             />
@@ -2988,7 +2996,7 @@ export default function App() {
                               value={cbReps}
                               onChange={(e) => setCbReps(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbReps('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="10"
                               required
                             />
@@ -3003,7 +3011,7 @@ export default function App() {
                                 key={m}
                                 type="button"
                                 onClick={() => setCbMode(m)}
-                                className={`flex-1 py-2 rounded-lg border transition-colors capitalize backdrop-blur-none ${cbMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
+                                className={`flex-1 py-2 rounded-lg border transition-colors capitalize no-blur ${cbMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
                               >
                                 {m}
                               </button>
@@ -3017,21 +3025,21 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => setCbUseRepDuration(!cbUseRepDuration)}
-                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors backdrop-blur-none ${cbUseRepDuration ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
+                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors no-blur ${cbUseRepDuration ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
                               >
                                 Rep Duration
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setCbUseRestBetweenReps(!cbUseRestBetweenReps)}
-                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors backdrop-blur-none ${cbUseRestBetweenReps ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
+                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors no-blur ${cbUseRestBetweenReps ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
                               >
                                 Rest Between Reps
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setCbUseRestBetweenSets(!cbUseRestBetweenSets)}
-                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors backdrop-blur-none ${cbUseRestBetweenSets ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
+                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors no-blur ${cbUseRestBetweenSets ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60'}`}
                               >
                                 Rest Between Sets
                               </button>
@@ -3048,7 +3056,7 @@ export default function App() {
                                     value={cbRepDuration}
                                     onChange={(e) => setCbRepDuration(e.target.value === '' ? '' : Number(e.target.value))}
                                     onFocus={() => setCbRepDuration('')}
-                                    className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                    className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                                     placeholder="0:60"
                                     required
                                   />
@@ -3064,7 +3072,7 @@ export default function App() {
                                     value={cbRestBetweenReps}
                                     onChange={(e) => setCbRestBetweenReps(e.target.value === '' ? '' : Number(e.target.value))}
                                     onFocus={() => setCbRestBetweenReps('')}
-                                    className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                    className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                                     placeholder="0:60"
                                     required
                                   />
@@ -3080,7 +3088,7 @@ export default function App() {
                                     value={cbRestBetweenSets}
                                     onChange={(e) => setCbRestBetweenSets(e.target.value === '' ? '' : Number(e.target.value))}
                                     onFocus={() => setCbRestBetweenSets('')}
-                                    className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                    className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                                     placeholder="0:60"
                                     required
                                   />
@@ -3102,7 +3110,7 @@ export default function App() {
                               value={cbSsTotalSupersets}
                               onChange={(e) => setCbSsTotalSupersets(e.target.value === '' ? '' : Number(e.target.value))}
                               onFocus={() => setCbSsTotalSupersets('')}
-                              className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                              className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                               placeholder="3"
                               required
                             />
@@ -3115,7 +3123,7 @@ export default function App() {
                                   key={m}
                                   type="button"
                                   onClick={() => setCbSsMode(m)}
-                                  className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize backdrop-blur-none ${cbSsMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
+                                  className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize no-blur ${cbSsMode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
                                 >
                                   {m}
                                 </button>
@@ -3135,7 +3143,7 @@ export default function App() {
                                 value={cbSsExerciseTransition}
                                 onChange={(e) => setCbSsExerciseTransition(e.target.value === '' ? '' : Number(e.target.value))}
                                 onFocus={() => setCbSsExerciseTransition('')}
-                                className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                                 placeholder="Duration (sec)"
                               />
                             </div>
@@ -3148,7 +3156,7 @@ export default function App() {
                                 value={cbSsSupersetTransition}
                                 onChange={(e) => setCbSsSupersetTransition(e.target.value === '' ? '' : Number(e.target.value))}
                                 onFocus={() => setCbSsSupersetTransition('')}
-                                className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
+                                className="w-full glass_fill border border-white/20 text-white rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
                                 placeholder="Duration (sec)"
                               />
                             </div>
@@ -3184,7 +3192,7 @@ export default function App() {
                                         newExs[idx].name = '';
                                         setCbSsExercises(newExs);
                                       }}
-                                      className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-cyan transition-all"
+                                      className="w-full glass_fill border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-cyan transition-all"
                                       placeholder="-enter name-"
                                       required
                                     />
@@ -3206,7 +3214,7 @@ export default function App() {
                                         newExs[idx].reps = '';
                                         setCbSsExercises(newExs);
                                       }}
-                                      className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-cyan transition-all"
+                                      className="w-full glass_fill border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-cyan transition-all"
                                       placeholder="12"
                                       required
                                     />
@@ -3225,7 +3233,7 @@ export default function App() {
                                         newExs[idx].mode = m;
                                         setCbSsExercises(newExs);
                                       }}
-                                      className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize backdrop-blur-none ${ex.mode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
+                                      className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors capitalize no-blur ${ex.mode === m ? 'bg-transparent border-cyan text-aquamarine shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-transparent border-white/10 text-white/60 hover:bg-transparent'}`}
                                     >
                                       {m}
                                     </button>
@@ -3252,7 +3260,7 @@ export default function App() {
                                           newExs[idx].repDuration = '';
                                           setCbSsExercises(newExs);
                                         }}
-                                        className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-cyan transition-all"
+                                        className="w-full glass_fill border border-white/20 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-cyan transition-all"
                                         placeholder="0:60"
                                         required
                                       />
@@ -3274,7 +3282,7 @@ export default function App() {
                                           newExs[idx].restBetweenReps = '';
                                           setCbSsExercises(newExs);
                                         }}
-                                        className="w-full bg-transparent backdrop-blur-md border border-white/20 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-cyan transition-all"
+                                        className="w-full glass_fill border border-white/20 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-cyan transition-all"
                                         placeholder="0:60"
                                       />
                                     </div>
@@ -3286,7 +3294,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setCbSsExercises([...cbSsExercises, { id: crypto.randomUUID(), name: '', reps: '', mode: 'manual' }])}
-                            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-cobalt/30 bg-transparent backdrop-blur-none hover:bg-transparent text-aquamarine transition-all group ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-cobalt/30 bg-transparent no-blur hover:bg-transparent text-aquamarine transition-all group ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                           >
                             <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             <span className="font-bold tracking-wide">Add Exercise to Superset</span>
@@ -3297,7 +3305,7 @@ export default function App() {
 
                     <button 
                       type="submit"
-                      className={`w-full mt-6 bg-transparent backdrop-blur-none text-aquamarine hover:text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      className={`w-full mt-6 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                     >
                       <Plus className="w-5 h-5 mr-2" />
                       Add to Workout
@@ -3316,11 +3324,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-absolute-void text-white selection:bg-cobalt/30">
+    <div className="min-h-screen bg-transparent text-white selection:bg-cobalt/30">
       {renderView()}
       {/* Save and Start Modal */}
       {saveAndStartModal !== 'none' && (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-[1.5px] flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-sm text-center">
             <h3 className="text-2xl font-bold text-white mb-4">
               {saveAndStartModal === 'both' && "Workout unnamed and no exercises"}

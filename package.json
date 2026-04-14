@@ -25,7 +25,6 @@
     "motion": "^12.23.24",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "replace-in-file": "^8.4.0",
     "three": "^0.183.2",
     "vite": "^6.2.0"
   },
@@ -34,6 +33,7 @@
     "@types/node": "^22.14.0",
     "@types/three": "^0.183.1",
     "autoprefixer": "^10.4.21",
+    "replace-in-file": "^8.4.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",

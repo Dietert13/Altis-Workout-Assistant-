@@ -335,8 +335,7 @@ export const CosmicFlow = ({ phase, isPaused, timeLeft = 0, explosionTrigger = 0
 
   return (
     <div className="absolute inset-0 z-0 pointer-events-none">
-      <Canvas camera={{ position: [0, 0, 25], fov: 60 }}>
-        <color attach="background" args={['#000000']} />
+      <Canvas camera={{ position: [0, 0, 25], fov: 60 }} gl={{ alpha: true }}>
         <DeepField phase={phase} status={status} />
         <CosmicAtmosphere isHIIT={isHIIT} isMetronomeEnabled={isMetronomeEnabled} metronomeBeat={metronomeBeat} explosionTrigger={explosionTrigger} phase={phase} timeLeft={timeLeft} />
         {isHIIT && isMetronomeEnabled && (
