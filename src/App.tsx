@@ -181,7 +181,7 @@ const TOOLBAR_BUTTON_CLASS = "bg-transparent border border-transparent hover:bg-
 const CONTAINER_BUTTON_CLASS = "bg-transparent hover:bg-transparent transition-all duration-300 no-blur";
 const GLASS_FILL = "glass_fill";
 
-const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, currentPhase: Phase, currentRound: number, currentRep: number = 1, currentSubIndex: number = 0): { index: number, phase: Phase, round: number, rep: number, subIndex: number, time: number } | null => {
+const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, currentPhase: Phase, currentRound: number, currentRep: number = 0, currentSubIndex: number = 0): { index: number, phase: Phase, round: number, rep: number, subIndex: number, time: number } | null => {
   let idx = currentIndex;
   let ph = currentPhase;
   let rnd = currentRound;
@@ -197,7 +197,7 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
       if (ph === null) {
         ph = 'Warmup';
         rnd = 1;
-        rep = 1;
+        rep = 0;
         subIdx = 0;
       } else if (ph === 'Warmup') {
         ph = 'Hard';
@@ -223,22 +223,22 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
       if (ph === 'Cooldown') time = hiitEx.cooldown;
 
       if (time > 0) {
-        return { index: idx, phase: ph, round: rnd, rep: 1, subIndex: 0, time };
+        return { index: idx, phase: ph, round: rnd, rep: 0, subIndex: 0, time };
       }
     } else if (ex.type === 'Set') {
       const setEx = ex as SetExercise;
       
       if (ph === null) {
         ph = 'Set_Active';
-        rep = 1;
+        rep = 0;
         rnd = 1;
         subIdx = 0;
       } else if (ph === 'Set_Active') {
+        rep++;
         if (rep < setEx.reps) {
           if (setEx.mode === 'time' && setEx.restBetweenReps && setEx.restBetweenReps > 0) {
             ph = 'Set_RepRest';
           } else {
-            rep++;
             ph = 'Set_Active';
           }
         } else {
@@ -247,7 +247,7 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
               ph = 'Set_Rest';
             } else {
               rnd++;
-              rep = 1;
+              rep = 0;
               ph = 'Set_Active';
             }
           } else {
@@ -257,11 +257,10 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
           }
         }
       } else if (ph === 'Set_RepRest') {
-        rep++;
         ph = 'Set_Active';
       } else if (ph === 'Set_Rest') {
         rnd++;
-        rep = 1;
+        rep = 0;
         ph = 'Set_Active';
       }
 
@@ -282,15 +281,15 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
         ph = 'Superset_Active';
         rnd = 1;
         subIdx = 0;
-        rep = 1;
+        rep = 0;
       } else if (ph === 'Superset_Active') {
         const currentSubEx = ssEx.exercises[subIdx];
+        rep++;
         if (rep < Number(currentSubEx.reps)) {
           if (currentSubEx.mode === 'time' && currentSubEx.restBetweenReps && currentSubEx.restBetweenReps > 0) {
-            ph = 'Superset_Active'; // We'll handle internal rep easy differently or just skip for now
-            rep++;
+            ph = 'Superset_Active'; // Usually handled as rep easy but here we just increment
           } else {
-            rep++;
+            // Keep active
           }
         } else {
           if (subIdx < ssEx.exercises.length - 1) {
@@ -298,7 +297,7 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
               ph = 'Superset_ExerciseRest';
             } else {
               subIdx++;
-              rep = 1;
+              rep = 0;
               ph = 'Superset_Active';
             }
           } else {
@@ -308,7 +307,7 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
               } else {
                 rnd++;
                 subIdx = 0;
-                rep = 1;
+                rep = 0;
                 ph = 'Superset_Active';
               }
             } else {
@@ -320,12 +319,12 @@ const getNextPhaseState = (workout: WorkoutItem[], currentIndex: number, current
         }
       } else if (ph === 'Superset_ExerciseRest') {
         subIdx++;
-        rep = 1;
+        rep = 0;
         ph = 'Superset_Active';
       } else if (ph === 'Superset_RoundRest') {
         rnd++;
         subIdx = 0;
-        rep = 1;
+        rep = 0;
         ph = 'Superset_Active';
       }
 
@@ -388,13 +387,14 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
   const [subExerciseIndex, setSubExerciseIndex] = React.useState(0);
   const [phase, setPhase] = React.useState<Phase>('Warmup');
   const [round, setRound] = React.useState(1);
-  const [rep, setRep] = React.useState(1);
+  const [rep, setRep] = React.useState(0);
   const [timeLeft, setTimeLeft] = React.useState(0);
   const [explosionTrigger, setExplosionTrigger] = React.useState(0);
   const [isDroning, setIsDroning] = React.useState(false);
   const [bloomIntensity, setBloomIntensity] = React.useState(1.0);
   const [flashTrigger, setFlashTrigger] = React.useState(0);
   const [metronomeBeat, setMetronomeBeat] = React.useState(0);
+  const [metronomeStartTime, setMetronomeStartTime] = React.useState<number | null>(null);
   const [repFlash, setRepFlash] = React.useState<number | null>(null);
   
   const [isPaused, setIsPaused] = React.useState(false);
@@ -420,6 +420,17 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
     if (phase === 'Easy') config = hiitEx.metronome.easy;
     if (phase === 'Cooldown') config = hiitEx.metronome.cooldown;
     return !!(config && config.enabled && config.bpm);
+  }, [currentEx, phase]);
+
+  const currentBpm = React.useMemo(() => {
+    const hiitEx = currentEx?.type === 'HIIT' ? currentEx as HIITExercise : null;
+    if (!hiitEx || !hiitEx.metronome) return 60;
+    let config = null;
+    if (phase === 'Warmup') config = hiitEx.metronome.warmup;
+    if (phase === 'Hard') config = hiitEx.metronome.hard;
+    if (phase === 'Easy') config = hiitEx.metronome.easy;
+    if (phase === 'Cooldown') config = hiitEx.metronome.cooldown;
+    return config?.bpm || 60;
   }, [currentEx, phase]);
 
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -477,7 +488,7 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       
       // Rep feedback: bloom intensity
       setBloomIntensity(3.0);
-      setRepFlash(rep);
+      setRepFlash(rep + 1);
 
       // Check if it's the final rep
       let isFinalRep = false;
@@ -521,28 +532,51 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
   };
 
   React.useEffect(() => {
-    if (status !== 'active' || isPaused || isModalOpen || timeLeft <= 5) return;
-    
+    // Determine the current metronome configuration
     const hiitEx = currentEx?.type === 'HIIT' ? currentEx as HIITExercise : null;
-    if (!hiitEx || !hiitEx.metronome) return;
-    
     let config = null;
-    if (phase === 'Warmup') config = hiitEx.metronome.warmup;
-    if (phase === 'Hard') config = hiitEx.metronome.hard;
-    if (phase === 'Easy') config = hiitEx.metronome.easy;
-    if (phase === 'Cooldown') config = hiitEx.metronome.cooldown;
+    if (hiitEx?.metronome) {
+      if (phase === 'Warmup') config = hiitEx.metronome.warmup;
+      else if (phase === 'Hard') config = hiitEx.metronome.hard;
+      else if (phase === 'Easy') config = hiitEx.metronome.easy;
+      else if (phase === 'Cooldown') config = hiitEx.metronome.cooldown;
+    }
     
-    if (!config || !config.enabled || !config.bpm) return;
+    const shouldRun = status === 'active' && !isPaused && !isModalOpen && timeLeft > 5 && config?.enabled && config?.bpm;
     
-    const interval = (60 / config.bpm) * 1000;
-    const timer = setInterval(() => {
+    if (!shouldRun) {
+      if (metronomeStartTime !== null) setMetronomeStartTime(null);
+      return;
+    }
+    
+    // Stabilize the start time: only set it if it's currently null.
+    // This avoids the infinite loop where setting the start time triggers the effect again.
+    if (metronomeStartTime === null) {
+      setMetronomeStartTime(performance.now());
+      return;
+    }
+
+    const interval = (60 / config!.bpm) * 1000;
+    let nextTick = metronomeStartTime;
+    let timeoutId: NodeJS.Timeout;
+
+    const tick = () => {
       playMetronomeClick();
       setMetronomeBeat(prev => prev + 1);
       setTimeout(() => setMetronomeBeat(0), 100);
-    }, interval);
+
+      nextTick += interval;
+      const now = performance.now();
+      const drift = nextTick - now;
+      timeoutId = setTimeout(tick, Math.max(0, drift));
+    };
+
+    // Important: Calculate relative offset from metronomeStartTime so first beat is synchronized
+    const initialDrift = Math.max(0, nextTick - performance.now());
+    timeoutId = setTimeout(tick, initialDrift);
     
-    return () => clearInterval(timer);
-  }, [status, isPaused, isModalOpen, timeLeft, phase, currentEx, playMetronomeClick]);
+    return () => clearTimeout(timeoutId);
+  }, [status, isPaused, isModalOpen, timeLeft > 5, phase, currentEx, playMetronomeClick, metronomeStartTime === null]);
 
   React.useEffect(() => {
     setMuted(isMuted);
@@ -562,12 +596,14 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       let step = 0;
       setCountdownText(sequence[step]);
       playCrystalPing();
+      setExplosionTrigger(prev => prev + 1);
       
       const interval = setInterval(() => {
         step++;
         if (step < sequence.length) {
           setCountdownText(sequence[step]);
           playCrystalPing();
+          setExplosionTrigger(prev => prev + 1);
         } else {
           clearInterval(interval);
           setStatus('active');
@@ -853,11 +889,11 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       case 'Easy': return '#FF0000'; // red
       case 'Cooldown': return '#0000FF'; // blue
       case 'Set_Active': return '#00E5FF'; // cyan
-      case 'Set_RepRest': return '#3D5AFE'; // indigo
-      case 'Set_Rest': return '#0047AB'; // cobalt
+      case 'Set_RepRest': return '#FF0000'; // red
+      case 'Set_Rest': return '#FF0000'; // red
       case 'Superset_Active': return '#00E5FF'; // cyan
-      case 'Superset_ExerciseRest': return '#3D5AFE'; // indigo
-      case 'Superset_RoundRest': return '#0047AB'; // cobalt
+      case 'Superset_ExerciseRest': return '#FF0000'; // red
+      case 'Superset_RoundRest': return '#FF0000'; // red
       default: return '#ffffff';
     }
   };
@@ -869,11 +905,11 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       case 'Easy': return 'text-red drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]';
       case 'Cooldown': return 'text-blue-500 drop-shadow-[0_0_10px_rgba(0,0,255,0.8)]';
       case 'Set_Active': return 'text-cyan drop-shadow-[0_0_10px_rgba(0,229,255,0.8)]';
-      case 'Set_RepRest': return 'text-indigo drop-shadow-[0_0_10px_rgba(61,90,254,0.8)]';
-      case 'Set_Rest': return 'text-cobalt drop-shadow-[0_0_10px_rgba(0,71,171,0.8)]';
+      case 'Set_RepRest': return 'text-red drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]';
+      case 'Set_Rest': return 'text-red drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]';
       case 'Superset_Active': return 'text-cyan drop-shadow-[0_0_10px_rgba(0,229,255,0.8)]';
-      case 'Superset_ExerciseRest': return 'text-indigo drop-shadow-[0_0_10px_rgba(61,90,254,0.8)]';
-      case 'Superset_RoundRest': return 'text-cobalt drop-shadow-[0_0_10px_rgba(0,71,171,0.8)]';
+      case 'Superset_ExerciseRest': return 'text-red drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]';
+      case 'Superset_RoundRest': return 'text-red drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]';
       default: return 'text-white';
     }
   };
@@ -890,11 +926,11 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       case 'Easy': return 'animate-[pulse_1s_ease-in-out_infinite] border-red shadow-[inset_0_0_50px_rgba(255,0,0,0.5)]';
       case 'Cooldown': return 'animate-[pulse_1s_ease-in-out_infinite] border-blue-500 shadow-[inset_0_0_50px_rgba(0,0,255,0.5)]';
       case 'Set_Active': return 'animate-[pulse_1s_ease-in-out_infinite] border-cyan shadow-[inset_0_0_50px_rgba(0,255,255,0.5)]';
-      case 'Set_RepRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-indigo shadow-[inset_0_0_50px_rgba(46,8,84,0.5)]';
-      case 'Set_Rest': return 'animate-[pulse_1s_ease-in-out_infinite] border-cobalt shadow-[inset_0_0_50px_rgba(0,71,171,0.5)]';
+      case 'Set_RepRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-red shadow-[inset_0_0_50px_rgba(255,0,0,0.5)]';
+      case 'Set_Rest': return 'animate-[pulse_1s_ease-in-out_infinite] border-red shadow-[inset_0_0_50px_rgba(255,0,0,0.5)]';
       case 'Superset_Active': return 'animate-[pulse_1s_ease-in-out_infinite] border-cyan shadow-[inset_0_0_50px_rgba(0,255,255,0.5)]';
-      case 'Superset_ExerciseRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-indigo shadow-[inset_0_0_50px_rgba(46,8,84,0.5)]';
-      case 'Superset_RoundRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-cobalt shadow-[inset_0_0_50px_rgba(0,71,171,0.5)]';
+      case 'Superset_ExerciseRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-red shadow-[inset_0_0_50px_rgba(255,0,0,0.5)]';
+      case 'Superset_RoundRest': return 'animate-[pulse_1s_ease-in-out_infinite] border-red shadow-[inset_0_0_50px_rgba(255,0,0,0.5)]';
       default: return 'border-transparent';
     }
   };
@@ -925,6 +961,8 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
         metronomeBeat={metronomeBeat}
         isHIIT={currentEx?.type === 'HIIT'}
         isMetronomeEnabled={isMetronomeEnabled}
+        bpm={currentBpm}
+        metronomeStartTime={metronomeStartTime}
       />
       
       {/* Full-screen invisible overlay for manual rep advance */}
@@ -939,9 +977,9 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
       <div className="relative z-20 flex justify-between items-center w-full">
         <button 
           onClick={(e) => { e.stopPropagation(); playCrystalPing(); openModal('exit'); }} 
-          className="p-2 text-white/60 hover:text-stellar-ember transition-colors"
+          className="p-1.5 text-white/60 hover:text-stellar-ember transition-colors"
         >
-          <X className="w-8 h-8" />
+          <X className="w-6 h-6" />
         </button>
         
         <button 
@@ -961,37 +999,51 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
 
       {/* 2. Text Boxes */}
       <div className="relative z-20 flex flex-col items-center w-full mt-2">
-        <div className="border border-white/20 glass_fill px-4 py-1 mb-1 rounded-lg">
+        <div className="border border-white/20 glass_fill px-4 py-1 mb-2 rounded-lg">
           <h2 className="text-lg font-bold text-white">
             {isSuperset && supersetDetails ? supersetDetails.exercises[subExerciseIndex].name : currentEx.name}
           </h2>
         </div>
-        
-        <div className="border border-white/20 glass_fill px-4 py-1 mb-2 rounded-lg">
+
+        {/* SET / ROUND info ABOVE Work/Rest */}
+        <div className="border border-white/10 glass_fill px-4 py-1 mb-1 rounded-lg">
           {isSet && setDetails ? (
-            <div className="text-sm text-white font-mono">
-              SET {round} / {setDetails.sets} — REP {rep} / {setDetails.reps}
+            <div className="text-lg text-white font-mono font-bold">
+              SET {round} / {setDetails.sets}
             </div>
           ) : isSuperset && supersetDetails ? (
-            <div className="text-sm text-white font-mono">
-              ROUND {round} / {supersetDetails.totalSupersets} — REP {rep} / {supersetDetails.exercises[subExerciseIndex].reps}
+            <div className="text-lg text-white font-mono font-bold">
+              ROUND {round} / {supersetDetails.totalSupersets}
             </div>
           ) : (
             (phase === 'Hard' || phase === 'Easy' || phase === 'Warmup' || phase === 'Cooldown') && (
-              <div className="text-sm text-white font-mono">
-                Round {round} / {hiitDetails?.rounds || 1}
+              <div className="text-lg text-white font-mono font-bold">
+                ROUND {round} / {hiitDetails?.rounds || 1}
               </div>
             )
           )}
         </div>
-
-        <h3 className={`text-3xl font-black uppercase tracking-widest ${getPhaseColorClass(phase)}`}>
+        
+        <h3 className={`text-5xl md:text-7xl font-black uppercase tracking-tighter mt-2 mb-2 leading-none ${getPhaseColorClass(phase)}`}>
           {phase === 'Set_RepRest' ? 'REST' : 
            phase === 'Set_Rest' ? 'SET REST' : 
-           phase === 'Hard' ? (hiitDetails?.hardName || 'PHASE 1') :
-           phase === 'Easy' ? (hiitDetails?.easyName || 'PHASE 2') :
-           phase?.replace('Set_', '')}
+           phase === 'Hard' ? (hiitDetails?.hardName && hiitDetails.hardName.trim().toUpperCase() !== 'PHASE 1' ? hiitDetails.hardName : 'HARD') :
+           phase === 'Easy' ? (hiitDetails?.easyName && hiitDetails.easyName.trim().toUpperCase() !== 'PHASE 2' ? hiitDetails.easyName : 'EASY') :
+           phase?.includes('Active') ? 'WORK' :
+           phase?.replace('Set_', '').replace('Superset_', '').replace('_', ' ')}
         </h3>
+
+        {/* REP info BELOW Work/Rest */}
+        {((isSet && setDetails) || (isSuperset && supersetDetails)) && (
+          <div className="border border-white/30 glass_fill px-10 py-4 mb-4 rounded-2xl shadow-[0_0_20px_rgba(0,255,255,0.15)] text-center">
+            <div className="text-xl md:text-2xl text-cyan/70 font-mono font-bold uppercase tracking-[0.3em] mb-1 leading-none">
+              REP
+            </div>
+            <div className="text-4xl md:text-6xl text-cyan font-mono font-black drop-shadow-[0_0_15px_rgba(0,255,255,0.8)] tracking-tighter leading-none">
+              {rep} / {isSet ? setDetails?.reps : supersetDetails?.exercises[subExerciseIndex].reps}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Spacer to clear the middle */}
@@ -1006,7 +1058,7 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
               transition={{ duration: 0.5, ease: "easeOut" }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <span className="text-[15rem] md:text-[20rem] font-black text-white/20 select-none">
+              <span className="text-[17rem] md:text-[22rem] font-black text-white/40 select-none drop-shadow-[0_0_50px_rgba(255,255,255,0.4)]">
                 {repFlash}
               </span>
             </motion.div>
@@ -1022,9 +1074,9 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); advancePhase(); }}
-              className={`pointer-events-auto bg-transparent border border-white/20 rounded-2xl px-8 py-4 transition-colors ${CONTAINER_BUTTON_CLASS}`}
+              className={`pointer-events-auto bg-transparent border-2 border-white/30 rounded-2xl px-12 py-6 transition-colors font-black ${CONTAINER_BUTTON_CLASS}`}
             >
-              <span>{rep} / {setDetails?.reps}</span>
+              <span className="text-8xl md:text-9xl drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">{rep} / {setDetails?.reps}</span>
             </button>
           )
         ) : isSuperset && phase === 'Superset_Active' && supersetDetails ? (
@@ -1033,9 +1085,9 @@ const WorkoutEngine = ({ workout, name, onExit }: { workout: WorkoutItem[], name
           ) : (
             <button 
               onClick={(e) => { e.stopPropagation(); advancePhase(); }}
-              className={`pointer-events-auto bg-transparent border border-white/20 rounded-2xl px-8 py-4 transition-colors ${CONTAINER_BUTTON_CLASS}`}
+              className={`pointer-events-auto bg-transparent border-2 border-white/30 rounded-2xl px-12 py-6 transition-colors font-black ${CONTAINER_BUTTON_CLASS}`}
             >
-              <span>{rep} / {supersetDetails.exercises[subExerciseIndex].reps}</span>
+              <span className="text-8xl md:text-9xl drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">{rep} / {supersetDetails.exercises[subExerciseIndex].reps}</span>
             </button>
           )
         ) : (
@@ -1120,6 +1172,25 @@ const safeStringify = (obj: any) => {
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('MainMenu');
+  const [viewHistory, setViewHistory] = useState<ViewState[]>(['MainMenu']);
+
+  const navigateTo = (view: ViewState) => {
+    setViewHistory(prev => [...prev, view]);
+    setCurrentView(view);
+  };
+
+  const goBack = () => {
+    if (viewHistory.length > 1) {
+      const newHistory = [...viewHistory];
+      newHistory.pop(); // remove current view
+      const prevView = newHistory[newHistory.length - 1];
+      setViewHistory(newHistory);
+      setCurrentView(prevView);
+    } else {
+      setCurrentView('MainMenu');
+    }
+  };
+
   const [builderSource, setBuilderSource] = useState<'planner' | 'library'>('planner');
   const [exerciseLibrary, setExerciseLibrary] = useState<Exercise[]>(() => {
     const saved = localStorage.getItem('palaestra_library');
@@ -1233,7 +1304,7 @@ export default function App() {
       setSavedWorkouts([...savedWorkouts, newWorkout]);
       setEditingWorkoutId(newWorkout.id);
     }
-    setCurrentView('WorkoutMode');
+    navigateTo('WorkoutMode');
   };
 
   const handleSaveAndStart = () => {
@@ -1274,8 +1345,8 @@ export default function App() {
       setEasy(exercise.easy);
       setCooldown(exercise.cooldown);
       setRounds(exercise.rounds);
-      setHardName(exercise.hardName || '');
-      setEasyName(exercise.easyName || '');
+      setHardName(exercise.hardName && exercise.hardName.trim().toUpperCase() !== 'PHASE 1' ? exercise.hardName : '');
+      setEasyName(exercise.easyName && exercise.easyName.trim().toUpperCase() !== 'PHASE 2' ? exercise.easyName : '');
       if (exercise.metronome) {
         setWarmupMetronome(exercise.metronome.warmup?.enabled || false);
         setWarmupBpm(exercise.metronome.warmup?.bpm || 120);
@@ -1312,7 +1383,7 @@ export default function App() {
         restBetweenReps: ex.restBetweenReps || ''
       })));
     }
-    setCurrentView('ExerciseBuilder');
+    navigateTo('ExerciseBuilder');
   };
 
   const handleDragEnd = (event: any) => {
@@ -1394,8 +1465,8 @@ export default function App() {
       setCbEasy(item.exercise.easy);
       setCbCooldown(item.exercise.cooldown);
       setCbRounds(item.exercise.rounds);
-      setCbHardName(item.exercise.hardName || '');
-      setCbEasyName(item.exercise.easyName || '');
+      setCbHardName(item.exercise.hardName && item.exercise.hardName.trim().toUpperCase() !== 'PHASE 1' ? item.exercise.hardName : '');
+      setCbEasyName(item.exercise.easyName && item.exercise.easyName.trim().toUpperCase() !== 'PHASE 2' ? item.exercise.easyName : '');
     } else if (item.exercise.type === 'Set') {
       setCbSets(item.exercise.sets);
       setCbReps(item.exercise.reps);
@@ -1420,8 +1491,8 @@ export default function App() {
     };
 
     return (
-      <div ref={setNodeRef} style={style}>
-        <div className="p-3 cursor-pointer" onClick={() => editExercise(item)}>
+      <div ref={setNodeRef} style={style} className="container-button-hole">
+        <div className={`p-3 cursor-pointer bg-transparent border border-white/20 rounded-xl ${CONTAINER_BUTTON_CLASS}`} onClick={() => editExercise(item)}>
           <div className="flex items-center gap-3">
             <div className="text-aquamarine cursor-grab" {...attributes} {...listeners}>
               <GripVertical className="w-5 h-5" />
@@ -1541,8 +1612,8 @@ export default function App() {
         easy: Number(cbEasy),
         cooldown: Number(cbCooldown),
         rounds: Number(cbRounds),
-        hardName: cbHardName.trim() || 'PHASE 1',
-        easyName: cbEasyName.trim() || 'PHASE 2',
+        hardName: cbHardName.trim() || 'HARD',
+        easyName: cbEasyName.trim() || 'EASY',
         metronome: {
           warmup: { enabled: cbWarmupMetronome, bpm: Number(cbWarmupBpm) || 120 },
           hard: { enabled: cbHardMetronome, bpm: Number(cbHardBpm) || 120 },
@@ -1645,6 +1716,10 @@ export default function App() {
       exercise: ex
     }]);
     setShowLibrary(false);
+    // If we are in the library view, show a brief confirmation
+    if (currentView === 'ExerciseLibrary') {
+      setCustomAlert({ show: true, message: `Added ${ex.name} to workout` });
+    }
   };
 
   const moveItem = (index: number, dir: -1 | 1) => {
@@ -1690,8 +1765,8 @@ export default function App() {
       easy: Number(easy),
       cooldown: Number(cooldown),
       rounds: Number(rounds),
-      hardName: hardName.trim() || 'PHASE 1',
-      easyName: easyName.trim() || 'PHASE 2',
+      hardName: hardName.trim() || 'HARD',
+      easyName: easyName.trim() || 'EASY',
       metronome: {
         warmup: { enabled: warmupMetronome, bpm: Number(warmupBpm) || 120 },
         hard: { enabled: hardMetronome, bpm: Number(hardBpm) || 120 },
@@ -1830,76 +1905,95 @@ export default function App() {
 
     if (newExercise) {
       setEditingLibraryExerciseId(null);
-      if (action === 'workout') {
+      if (action === 'new') {
+        if (builderSource === 'planner') {
+          setCurrentWorkout(prev => [...prev, {
+            uniqueId: crypto.randomUUID(),
+            name: newExercise!.name,
+            type: 'Library',
+            exercise: newExercise!
+          }]);
+        }
+        // Form is already reset by handleSave...
+      } else if (action === 'workout') {
         setCurrentWorkout(prev => [...prev, {
           uniqueId: crypto.randomUUID(),
           name: newExercise.name,
           type: 'Library',
           exercise: newExercise
         }]);
-        setCurrentView('WorkoutPlanner');
+        navigateTo('WorkoutPlanner');
       } else if (action === 'library') {
-        setCurrentView('ExerciseLibrary');
+        navigateTo('ExerciseLibrary');
       }
     }
   };
 
-  const [buttonHoleMask, setButtonHoleMask] = useState<string>('');
-  const [buttonHoleOverlay, setButtonHoleOverlay] = useState<string>('');
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [buttonHoleMasks, setButtonHoleMasks] = useState<Record<string, string>>({});
+  const [buttonHoleOverlays, setButtonHoleOverlays] = useState<Record<string, string>>({});
 
   const updateButtonHoles = useCallback(() => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
-    const rect = container.getBoundingClientRect();
-    const buttons = container.querySelectorAll('.container-button-hole');
-    
-    if (buttons.length === 0) {
-      setButtonHoleMask('');
-      setButtonHoleOverlay('');
-      return;
-    }
+    const containers = document.querySelectorAll('[data-button-hole-container]');
+    const newMasks: Record<string, string> = {};
+    const newOverlays: Record<string, string> = {};
 
-    let maskRects = '';
-    let borderRects = '';
-    buttons.forEach(btn => {
-      const btnRect = btn.getBoundingClientRect();
-      const padding = -0.5;
-      const x = btnRect.left - rect.left - padding;
-      const y = btnRect.top - rect.top - padding;
-      const width = btnRect.width + padding * 2;
-      const height = btnRect.height + padding * 2;
-      const style = window.getComputedStyle(btn);
-      let rxVal = 8;
-      if (style.borderRadius) {
-        const parsed = parseFloat(style.borderRadius);
-        if (!isNaN(parsed)) rxVal = parsed;
+    containers.forEach(container => {
+      const id = container.getAttribute('data-button-hole-container');
+      if (!id) return;
+
+      const rect = container.getBoundingClientRect();
+      const buttons = container.querySelectorAll('.container-button-hole');
+      
+      if (buttons.length === 0) {
+        newMasks[id] = '';
+        newOverlays[id] = '';
+        return;
       }
-      const rx = rxVal + padding;
-      // In an SVG mask, black hides and white shows.
-      // We want the background to be white (show blur) and buttons to be black (hide blur/create hole).
-      maskRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="black" />`;
-      borderRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="none" stroke="transparent" stroke-width="1" />`;
+
+      let maskRects = '';
+      let borderRects = '';
+      buttons.forEach(btn => {
+        const btnRect = btn.getBoundingClientRect();
+        const padding = -0.5;
+        const x = btnRect.left - rect.left - padding;
+        const y = btnRect.top - rect.top - padding;
+        const width = btnRect.width + padding * 2;
+        const height = btnRect.height + padding * 2;
+        const style = window.getComputedStyle(btn);
+        let rxVal = 8;
+        if (style.borderRadius) {
+          const parsed = parseFloat(style.borderRadius);
+          if (!isNaN(parsed)) rxVal = parsed;
+        }
+        const rx = rxVal + padding;
+        // In an SVG mask, black hides and white shows.
+        // We want the background to be white (show blur) and buttons to be black (hide blur/create hole).
+        maskRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="black" />`;
+        borderRects += `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" fill="none" stroke="transparent" stroke-width="1" />`;
+      });
+
+      // We use a mask definition to subtract the button areas from a solid white rectangle.
+      // The resulting SVG will have alpha transparency where the buttons are.
+      const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
+        <defs>
+          <mask id="hole-mask-${id}">
+            <rect width="100%" height="100%" fill="white" />
+            ${maskRects}
+          </mask>
+        </defs>
+        <rect width="100%" height="100%" fill="white" mask="url(#hole-mask-${id})" />
+      </svg>`;
+      
+      const overlaySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
+        ${borderRects}
+      </svg>`;
+      
+      newMasks[id] = `url("data:image/svg+xml,${encodeURIComponent(maskSvg)}")`;
+      newOverlays[id] = `url("data:image/svg+xml,${encodeURIComponent(overlaySvg)}")`;
     });
 
-    // We use a mask definition to subtract the button areas from a solid white rectangle.
-    // The resulting SVG will have alpha transparency where the buttons are.
-    const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
-      <defs>
-        <mask id="hole-mask">
-          <rect width="100%" height="100%" fill="white" />
-          ${maskRects}
-        </mask>
-      </defs>
-      <rect width="100%" height="100%" fill="white" mask="url(#hole-mask)" />
-    </svg>`;
-    
-    const overlaySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
-      ${borderRects}
-    </svg>`;
-    
-    setButtonHoleMask(`url("data:image/svg+xml,${encodeURIComponent(maskSvg)}")`);
-    setButtonHoleOverlay(`url("data:image/svg+xml,${encodeURIComponent(overlaySvg)}")`);
+    setButtonHoleMasks(newMasks);
+    setButtonHoleOverlays(newOverlays);
   }, []);
 
   useLayoutEffect(() => {
@@ -1910,7 +2004,8 @@ export default function App() {
     currentView, customBuilderType, builderType, currentWorkout, updateButtonHoles, 
     setMode, setUseRepDuration, setUseRestBetweenReps, setUseRestBetweenSets, 
     ssMode, ssExercises,
-    warmupMetronome, hardMetronome, easyMetronome, cooldownMetronome
+    warmupMetronome, hardMetronome, easyMetronome, cooldownMetronome,
+    savedWorkouts, expandedItems, showLibrary
   ]);
 
   useEffect(() => {
@@ -1960,8 +2055,8 @@ export default function App() {
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
                   <AccretionDisk size={112} color="#00E676" />
                   <div 
-                    onClick={() => setCurrentView('Workouts')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-28 h-28 rounded-full border border-formula-green bg-transparent hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,230,118,0.2)] hover:shadow-[0_0_25px_rgba(0,230,118,0.4)] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]"
+                    onClick={() => navigateTo('Workouts')}
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-28 h-28 rounded-full border border-aquamarine bg-white/[0.01] backdrop-blur-[1.5px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_15px_rgba(0,230,118,0.2)] hover:shadow-[0_0_25px_rgba(0,230,118,0.4)] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]"
                   >
                     <ListPlus className="w-8 h-8 mb-1 text-formula-green group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]" />
                     <h2 className="text-xs font-bold text-white group-hover:text-formula-green transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center">
@@ -1976,8 +2071,8 @@ export default function App() {
                 <div className="relative">
                   <AccretionDisk size={96} color="#967BB6" />
                   <div 
-                    onClick={() => setCurrentView('WorkoutPlanner')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-nebula-lavender bg-transparent hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(150,123,182,0.2)] hover:shadow-[0_0_25px_rgba(150,123,182,0.4)] drop-shadow-[0_0_8px_rgba(150,123,182,0.4)]"
+                    onClick={() => navigateTo('WorkoutPlanner')}
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-nebula-lavender bg-white/[0.01] backdrop-blur-[1.5px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_15px_rgba(150,123,182,0.2)] hover:shadow-[0_0_25px_rgba(150,123,182,0.4)] drop-shadow-[0_0_8px_rgba(150,123,182,0.4)]"
                   >
                     <ClipboardList className="w-6 h-6 mb-1 text-nebula-lavender group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(150,123,182,0.3)]" />
                     <h2 className="text-[9px] font-bold text-white group-hover:text-nebula-lavender transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center leading-tight max-w-[60px]">
@@ -1991,8 +2086,11 @@ export default function App() {
                 <div className="relative">
                   <AccretionDisk size={96} color="#00E5FF" />
                   <div 
-                    onClick={() => setCurrentView('ExerciseLibrary')}
-                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-cyan bg-transparent hover:bg-transparent transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]"
+                    onClick={() => {
+                      setBuilderSource('library');
+                      navigateTo('ExerciseLibrary');
+                    }}
+                    className="relative z-40 flex flex-col items-center justify-center p-0 group w-24 h-24 rounded-full border border-cyan bg-white/[0.01] backdrop-blur-[1.5px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:shadow-[0_0_25px_rgba(0,229,255,0.4)] drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]"
                   >
                     <Book className="w-6 h-6 mb-1 text-cyan group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(0,229,255,0.3)]" />
                     <h2 className="text-[9px] font-bold text-white group-hover:text-cyan transition-colors drop-shadow-[0_0_4px_rgba(255,255,255,0.3)] text-center leading-tight max-w-[60px]">
@@ -2012,26 +2110,26 @@ export default function App() {
             <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-2">
                 <div 
-                  onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
+                  onClick={goBack}
+                  className="px-3 py-1 flex items-center gap-2 group border border-aquamarine bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
-                  <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
-                  <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
+                  <ArrowLeft className="w-3.5 h-3.5 text-aquamarine group-hover:text-white transition-colors" />
+                  <span className="text-[10px] font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Back</span>
                 </div>
 
                 <div className="relative">
-                  <AccretionDisk size={56} color="#7FFFD4" />
+                  <AccretionDisk size={44} color="#7FFFD4" />
                   <div 
                     onClick={() => {
                       setCurrentWorkout([]);
                       setWorkoutName('');
                       setEditingWorkoutId(null);
-                      setCurrentView('WorkoutPlanner');
+                      navigateTo('WorkoutPlanner');
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-white/[0.01] backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
+                    className="relative z-40 w-9 h-9 rounded-full flex items-center justify-center p-0 group border border-transparent bg-white/[0.01] backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                     title="Add New Workout"
                   >
-                    <Plus className="w-6 h-6 text-aquamarine group-hover:text-white group-hover:scale-110 transition-all duration-300 drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]" />
+                    <Plus className="w-4 h-4 text-aquamarine group-hover:text-white group-hover:scale-110 transition-all duration-300 drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]" />
                   </div>
                 </div>
               </div>
@@ -2043,53 +2141,107 @@ export default function App() {
                 <p className="text-aquamarine/60 text-sm tracking-[0.2em] uppercase mt-1">Your Training Archive</p>
               </div>
 
-              <div className="relative z-30 p-6 border border-white/20 rounded-2xl">
-                {savedWorkouts.length === 0 ? (
-                  <div className="flex justify-center py-4">
-                    <div className="relative">
-                      <AccretionDisk size={200} color="#00E5FF" className="opacity-10" />
-                      <div className="relative z-40 max-w-md w-full text-center py-8 px-6 flex flex-col items-center justify-center border-white/5 rounded-[2rem]">
-                        <div className="w-16 h-16 rounded-full bg-transparent border border-cyan/30 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(0,255,255,0.1)]">
-                          <ClipboardList className="w-8 h-8 text-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.6)]" />
+              <div className="relative z-30 overflow-hidden border border-white/20 rounded-2xl" data-button-hole-container="saved-workouts">
+                {/* Background Layer with Mask */}
+                <div 
+                  className="absolute inset-0 glass_fill z-0"
+                  style={{ maskImage: buttonHoleMasks['saved-workouts'], WebkitMaskImage: buttonHoleMasks['saved-workouts'] }}
+                />
+                {/* Overlay Layer for White Borders */}
+                <div 
+                  className="absolute inset-0 z-50 pointer-events-none"
+                  style={{ backgroundImage: buttonHoleOverlays['saved-workouts'] }}
+                />
+
+                <div className="relative z-40 p-6">
+                  {savedWorkouts.length === 0 ? (
+                    <div className="flex justify-center py-4">
+                      <div className="relative">
+                        <AccretionDisk size={200} color="#00E5FF" className="opacity-10" />
+                        <div className="relative z-40 max-w-md w-full text-center py-8 px-6 flex flex-col items-center justify-center border-white/5 rounded-[2rem]">
+                          <div className="w-16 h-16 rounded-full bg-transparent border border-cyan/30 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(0,255,255,0.1)]">
+                            <ClipboardList className="w-8 h-8 text-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.6)]" />
+                          </div>
+                          <p className="text-lg font-bold text-white tracking-tight mb-2">No saved workouts yet.</p>
+                          <p className="text-aquamarine/60 text-sm leading-relaxed">
+                            Add your first workout in the workout planner.
+                          </p>
                         </div>
-                        <p className="text-lg font-bold text-white tracking-tight mb-2">No saved workouts yet.</p>
-                        <p className="text-aquamarine/60 text-sm leading-relaxed">
-                          Add your first workout in the workout planner.
-                        </p>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {savedWorkouts.map(workout => (
-                        <div key={workout.id} className="flex flex-col h-full bg-transparent">
-                        <h3 className="text-xl font-bold text-white mb-2">{workout.name}</h3>
-                        <p className="text-aquamarine text-sm mb-4">{workout.items.length} exercises</p>
-                        <div className="mt-auto flex gap-2">
-                          <button 
-                            onClick={() => {
-                              setCurrentWorkout(workout.items);
-                              setWorkoutName(workout.name);
-                              setEditingWorkoutId(workout.id);
-                              setCurrentView('WorkoutPlanner');
-                            }}
-                            className={`flex-1 bg-transparent no-blur hover:bg-transparent border border-cobalt/50 text-aquamarine py-2 rounded-lg transition-colors flex justify-center items-center ${CONTAINER_BUTTON_CLASS}`}
-                          >
-                            <Play className="w-4 h-4 mr-2" /> Load
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setSavedWorkouts(savedWorkouts.filter(w => w.id !== workout.id));
-                            }}
-                            className={`p-2 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30 ${CONTAINER_BUTTON_CLASS}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  ) : (
+                    <div className="space-y-4">
+                      {savedWorkouts.map(workout => {
+                        const isExpanded = expandedItems.has(workout.id);
+                        return (
+                          <div key={workout.id} className="border border-white/20 rounded-2xl overflow-hidden bg-transparent container-button-hole">
+                            <div 
+                              className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+                              onClick={() => toggleExpand(workout.id)}
+                            >
+                              <div>
+                                <h3 className="text-xl font-bold text-white">{workout.name}</h3>
+                                <p className="text-aquamarine text-xs uppercase tracking-wider">{workout.items.length} exercises</p>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSavedWorkouts(savedWorkouts.filter(w => w.id !== workout.id));
+                                  }}
+                                  className="p-2 text-stellar-ember hover:text-stellar-ember/80 transition-colors"
+                                  title="Delete Workout"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                {isExpanded ? <ChevronUp className="w-6 h-6 text-aquamarine" /> : <ChevronDown className="w-6 h-6 text-aquamarine" />}
+                              </div>
+                            </div>
+                            
+                            {isExpanded && (
+                              <div className="p-4 border-t border-white/10 bg-black/20">
+                                <div className="mb-6 space-y-2">
+                                  <h4 className="text-[10px] font-bold text-aquamarine/40 uppercase tracking-[0.2em] mb-3">Workout Summary</h4>
+                                  {workout.items.map((item, idx) => (
+                                    <div key={item.uniqueId} className="flex justify-between items-center text-sm text-white/80 py-2 px-3 border border-white/10 rounded-lg mb-2 container-button-hole bg-transparent">
+                                      <span className="font-medium">{idx + 1}. {item.name}</span>
+                                      <span className="text-[10px] font-bold text-aquamarine/30 uppercase tracking-tighter">{item.exercise?.type}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <div className="flex gap-3">
+                                  <button 
+                                    onClick={() => {
+                                      setCurrentWorkout(workout.items);
+                                      setWorkoutName(workout.name);
+                                      setEditingWorkoutId(workout.id);
+                                      navigateTo('WorkoutMode');
+                                    }}
+                                    className={`flex-1 bg-transparent border border-cyan/50 text-cyan py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-cyan/10 transition-all ${CONTAINER_BUTTON_CLASS}`}
+                                  >
+                                    <Play className="w-4 h-4 mr-2 inline" /> Start Workout
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setCurrentWorkout(workout.items);
+                                      setWorkoutName(workout.name);
+                                      setEditingWorkoutId(workout.id);
+                                      navigateTo('WorkoutPlanner');
+                                    }}
+                                    className={`flex-1 bg-transparent border border-white/20 text-white py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-white/5 transition-all ${CONTAINER_BUTTON_CLASS}`}
+                                  >
+                                    <Plus className="w-4 h-4 mr-2 inline" /> Load to Planner
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2102,22 +2254,22 @@ export default function App() {
             <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-2">
                 <div 
-                  onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-aquamarine bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
+                  onClick={goBack}
+                  className="px-3 py-1 flex items-center gap-2 group border border-aquamarine bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
-                  <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
-                  <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
+                  <ArrowLeft className="w-3.5 h-3.5 text-aquamarine group-hover:text-white transition-colors" />
+                  <span className="text-[10px] font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Back</span>
                 </div>
                 
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <AccretionDisk size={56} color="#00E5FF" />
+                    <AccretionDisk size={44} color="#00E5FF" />
                     <div 
-                      onClick={() => setCurrentView('ExerciseLibrary')}
-                      className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-cyan bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(0,229,255,0.2)] hover:shadow-[0_0_20px_rgba(0,229,255,0.4)]"
+                      onClick={() => navigateTo('ExerciseLibrary')}
+                      className="relative z-40 w-9 h-9 rounded-full flex items-center justify-center p-0 group border border-cyan bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(0,229,255,0.2)] hover:shadow-[0_0_20px_rgba(0,229,255,0.4)]"
                       title="Exercise Library"
                     >
-                      <Book className="w-5 h-5 text-cyan group-hover:text-white transition-colors" />
+                      <Book className="w-4 h-4 text-cyan group-hover:text-white transition-colors" />
                     </div>
                   </div>
                 </div>
@@ -2129,16 +2281,16 @@ export default function App() {
                 </h2>
               </div>
 
-              <div ref={containerRef} className="max-w-2xl mx-auto relative z-30 overflow-hidden border border-white/20 rounded-2xl">
+              <div className="max-w-2xl mx-auto relative z-30 overflow-hidden border border-white/20 rounded-2xl" data-button-hole-container="exercise-builder">
                 {/* Background Layer with Mask */}
                   <div 
                     className="absolute inset-0 glass_fill z-0"
-                    style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
+                    style={{ maskImage: buttonHoleMasks['exercise-builder'], WebkitMaskImage: buttonHoleMasks['exercise-builder'] }}
                   />
                 {/* Overlay Layer for White Borders */}
                 <div 
                   className="absolute inset-0 z-50 pointer-events-none"
-                  style={{ backgroundImage: buttonHoleOverlay }}
+                  style={{ backgroundImage: buttonHoleOverlays['exercise-builder'] }}
                 />
                 
                 {/* Content Layer */}
@@ -2621,35 +2773,35 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => handleUnifiedSave('workout')}
-                      className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2.5 px-3 text-xs rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                     >
-                      <Save className="w-4 h-4 mr-2" />
+                      <Save className="w-6 h-6 mr-2" />
                       Save & Workout
                     </button>
                   ) : (
                     <button 
                       type="button"
                       onClick={() => handleUnifiedSave('library')}
-                      className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      className={`w-40 bg-transparent no-blur text-aquamarine hover:text-white font-bold py-2.5 px-3 text-xs rounded-lg transition-all flex items-center justify-center border border-aquamarine ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                     >
-                      <Save className="w-4 h-4 mr-2" />
+                      <Save className="w-6 h-6 mr-2" />
                       {editingLibraryExerciseId ? 'Update Exercise' : 'Save to Library'}
                     </button>
                   )}
                   <button 
                     type="button"
                     onClick={() => handleUnifiedSave('new')}
-                    className={`w-40 bg-transparent no-blur text-cyan hover:text-white font-bold py-2 px-3 text-sm rounded-lg transition-all flex items-center justify-center border border-cyan ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                    className={`w-40 bg-transparent no-blur text-cyan hover:text-white font-bold py-2.5 px-3 text-xs rounded-lg transition-all flex items-center justify-center border border-cyan ${CONTAINER_BUTTON_CLASS} container-button-hole`}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-6 h-6 mr-2" />
                     Save & New
                   </button>
-                </div>
                 </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
         );
 
       case 'ExerciseLibrary':
@@ -2659,25 +2811,32 @@ export default function App() {
             <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-2">
                 <div 
-                  onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
+                  onClick={goBack}
+                  className="px-3 py-1 flex items-center gap-2 group border border-transparent bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
-                  <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
-                  <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
+                  <ArrowLeft className="w-3.5 h-3.5 text-aquamarine group-hover:text-white transition-colors" />
+                  <span className="text-[10px] font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Back</span>
+                </div>
+
+                <div 
+                  onClick={() => navigateTo('WorkoutPlanner')}
+                  className="px-3 py-1 flex items-center gap-2 group border border-cyan/30 bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(0,229,255,0.1)] hover:shadow-[0_0_20px_rgba(0,229,255,0.3)] cursor-pointer"
+                >
+                  <span className="text-[10px] font-bold text-cyan group-hover:text-white transition-colors uppercase tracking-widest">W.O.P.</span>
                 </div>
 
                 <div className="relative">
-                  <AccretionDisk size={56} color="#7FFFD4" />
+                  <AccretionDisk size={44} color="#7FFFD4" />
                   <div 
                     onClick={() => {
                       setBuilderSource('library');
                       setEditingLibraryExerciseId(null);
-                      setCurrentView('ExerciseBuilder');
+                      navigateTo('ExerciseBuilder');
                     }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-white/[0.01] backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
+                    className="relative z-40 w-9 h-9 rounded-full flex items-center justify-center p-0 group border border-transparent bg-white/[0.01] backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                     title="Add Exercise"
                   >
-                    <Plus className="w-6 h-6 text-aquamarine group-hover:text-white transition-colors" />
+                    <Plus className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
                   </div>
                 </div>
               </div>
@@ -2689,18 +2848,30 @@ export default function App() {
                 <p className="text-aquamarine/60 text-sm tracking-[0.2em] uppercase mt-1">Your Movement Catalog</p>
               </div>
 
-              <div className="relative z-30 p-6 border border-white/20 rounded-2xl glass_fill backdrop-blur-[0.75px]">
-                <div className="space-y-6">
-                {exerciseLibrary.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Dumbbell className="w-12 h-12 mx-auto text-white/20 mb-4" />
-                    <p className="text-aquamarine/60">Your library is empty. Add an exercise to get started.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                    {exerciseLibrary.map((exercise) => (
-                      <div key={exercise.id} className="p-3 bg-transparent border border-white/10 rounded-xl flex items-center justify-between gap-2 md:gap-4 cursor-pointer hover:border-cyan/50 transition-colors" onClick={() => editLibraryExercise(exercise)}>
-                        <div className="flex-grow flex items-center gap-2 md:gap-4 overflow-hidden">
+              <div className="relative z-30 overflow-hidden border border-white/20 rounded-2xl" data-button-hole-container="exercise-library">
+                {/* Background Layer with Mask */}
+                <div 
+                  className="absolute inset-0 glass_fill z-0"
+                  style={{ maskImage: buttonHoleMasks['exercise-library'], WebkitMaskImage: buttonHoleMasks['exercise-library'] }}
+                />
+                {/* Overlay Layer for White Borders */}
+                <div 
+                  className="absolute inset-0 z-50 pointer-events-none"
+                  style={{ backgroundImage: buttonHoleOverlays['exercise-library'] }}
+                />
+
+                <div className="relative z-40 p-6">
+                  <div className="space-y-6">
+                  {exerciseLibrary.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Dumbbell className="w-12 h-12 mx-auto text-white/20 mb-4" />
+                      <p className="text-aquamarine/60">Your library is empty. Add an exercise to get started.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {exerciseLibrary.map((exercise) => (
+                        <div key={exercise.id} className="p-3 bg-transparent border border-white/10 rounded-xl flex items-center justify-between gap-2 md:gap-4 hover:border-cyan/50 transition-colors container-button-hole">
+                        <div className="flex-grow flex items-center gap-2 md:gap-4 overflow-hidden cursor-pointer" onClick={() => editLibraryExercise(exercise)}>
                           <div className="w-1/3 min-w-[80px]">
                             <span className="text-[10px] font-semibold bg-transparent text-aquamarine px-1.5 py-0.5 rounded block w-max mb-0.5">
                               {exercise.type}
@@ -2768,15 +2939,28 @@ export default function App() {
                           )}
                         </div>
                         
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExerciseLibrary(exerciseLibrary.filter(e => e.id !== exercise.id));
-                          }}
-                          className="p-1.5 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30 flex-shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {builderSource === 'planner' && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addFromLibrary(exercise);
+                              }}
+                              className="p-1.5 text-cyan hover:text-white bg-transparent no-blur hover:bg-cyan/20 rounded-lg transition-colors border border-cyan/30 flex-shrink-0"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExerciseLibrary(exerciseLibrary.filter(e => e.id !== exercise.id));
+                            }}
+                            className="p-1.5 text-stellar-ember hover:text-stellar-ember/80 bg-transparent no-blur hover:bg-transparent rounded-lg transition-colors border border-stellar-ember/30 flex-shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -2785,6 +2969,7 @@ export default function App() {
               </div>
             </div>
           </div>
+        </div>
         );
 
       case 'WorkoutPlanner':
@@ -2794,39 +2979,11 @@ export default function App() {
             <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-2">
                 <div 
-                  onClick={() => setCurrentView('MainMenu')}
-                  className="px-4 py-1.5 flex items-center gap-2 group border border-transparent bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
+                  onClick={goBack}
+                  className="px-3 py-1 flex items-center gap-2 group border border-transparent bg-white/[0.01] rounded-xl backdrop-blur-[1px] hover:bg-white/[0.02] transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] drop-shadow-[0_0_8px_rgba(127,255,212,0.4)]"
                 >
-                  <X className="w-4 h-4 text-aquamarine group-hover:text-white transition-colors" />
-                  <span className="text-xs font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Exit</span>
-                </div>
-
-                <div className="relative">
-                  <AccretionDisk size={56} color="#7FFFD4" />
-                  <div 
-                    onClick={() => {
-                      if (currentWorkout.length > 0) {
-                        const nameToSave = workoutName || 'Untitled Workout';
-                        const existingIndex = savedWorkouts.findIndex(w => w.name === nameToSave);
-                        if (existingIndex >= 0) {
-                          const updated = [...savedWorkouts];
-                          updated[existingIndex] = { ...updated[existingIndex], items: currentWorkout };
-                          setSavedWorkouts(updated);
-                        } else {
-                          const newWorkout = {
-                            id: crypto.randomUUID(),
-                            name: nameToSave,
-                            items: currentWorkout
-                          };
-                          setSavedWorkouts([...savedWorkouts, newWorkout]);
-                        }
-                      }
-                    }}
-                    className="relative z-40 w-12 h-12 rounded-full flex items-center justify-center p-0 group border border-transparent bg-transparent no-blur hover:bg-transparent transition-all duration-300 shadow-[0_0_10px_rgba(127,255,212,0.2)] hover:shadow-[0_0_20px_rgba(127,255,212,0.4)] disabled:opacity-50"
-                    title="Save Workout"
-                  >
-                    <Save className="w-5 h-5 text-aquamarine group-hover:text-white transition-colors" />
-                  </div>
+                  <ArrowLeft className="w-3.5 h-3.5 text-aquamarine group-hover:text-white transition-colors" />
+                  <span className="text-[10px] font-bold text-aquamarine group-hover:text-white transition-colors uppercase tracking-widest">Back</span>
                 </div>
               </div>
 
@@ -2838,130 +2995,110 @@ export default function App() {
 
               <div className="space-y-6">
                 {/* Container 1: Add an Exercise */}
-                <div ref={containerRef} className="relative z-30 overflow-hidden border border-white/20 rounded-2xl">
+                <div className="relative z-30 overflow-hidden border border-white/20 rounded-2xl" data-button-hole-container="planner-actions">
                   {/* Background Layer with Mask */}
                   <div 
                     className="absolute inset-0 glass_fill z-0"
-                    style={{ maskImage: buttonHoleMask, WebkitMaskImage: buttonHoleMask }}
+                    style={{ maskImage: buttonHoleMasks['planner-actions'], WebkitMaskImage: buttonHoleMasks['planner-actions'] }}
                   />
                   {/* Overlay Layer for White Borders */}
                   <div 
                     className="absolute inset-0 z-50 pointer-events-none"
-                    style={{ backgroundImage: buttonHoleOverlay }}
+                    style={{ backgroundImage: buttonHoleOverlays['planner-actions'] }}
                   />
                   
                   {/* Content Layer */}
-                  <div className="relative z-40">
-                    {/* Exercise Type Selection Section */}
-                    <div className="p-6 flex flex-col items-center gap-4">
-                      {/* Save and Start Button */}
+                  <div className="relative z-40 p-6 flex flex-col gap-4">
+                    <div className="flex justify-center items-center w-full">
+                      {/* Start (center) - LARGE */}
                       <button 
-                        onClick={handleSaveAndStart} 
-                        className={`text-formula-green border border-formula-green px-4 py-2 text-sm rounded-lg transition-colors flex items-center justify-center w-fit ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                        onClick={handleSaveAndStart}
+                        className={`w-2/3 text-cyan border border-cyan py-2 px-6 rounded-xl transition-colors flex items-center justify-center ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                        title="Start Workout"
                       >
-                        <Play className="w-4 h-4 mr-2" /> Save and Start
+                        <Play className="w-7 h-7" />
                       </button>
+                    </div>
+                    
+                    <div className={`mb-0 ${CONTAINER_BUTTON_CLASS} container-button-hole border border-formula-green rounded-lg p-1`}>
+                      <input 
+                        type="text" 
+                        value={workoutName}
+                        onChange={(e) => setWorkoutName(e.target.value)}
+                        className="bg-transparent text-xl font-bold text-white px-4 py-2 focus:outline-none placeholder:text-white/20 w-full text-center"
+                        placeholder="Workout Name"
+                      />
+                    </div>
 
-                      <div className="flex w-full justify-center gap-4">
-                        <button 
-                          onClick={() => {
-                            setBuilderSource('planner');
-                            setCurrentView('ExerciseBuilder');
-                          }}
-                          className={`text-aquamarine border border-aquamarine px-4 py-2 text-sm rounded-md transition-colors flex items-center justify-center w-fit ${CONTAINER_BUTTON_CLASS} container-button-hole`}
-                        >
-                          <Plus className="w-4 h-4 mr-2" /> + Build an Exercise
-                        </button>
-                      </div>
-                      <button onClick={() => setShowLibrary(true)} className={`text-aquamarine border border-aquamarine px-2 py-0.5 text-xs rounded-md transition-colors flex items-center justify-center w-fit ${CONTAINER_BUTTON_CLASS} container-button-hole`}>
-                        <ListPlus className="w-3 h-3 mr-1" /> Add from Library
+                    <div className="flex gap-4 mb-2 justify-center">
+                      <button 
+                        onClick={() => {
+                          setBuilderSource('planner');
+                          navigateTo('ExerciseLibrary');
+                        }} 
+                        className={`w-28 flex flex-col items-center justify-center gap-1 text-aquamarine border border-aquamarine py-1.5 px-3 rounded-xl transition-colors ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      >
+                        <ListPlus className="w-5 h-5" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Library</span>
                       </button>
+                      <button 
+                        onClick={() => {
+                          setBuilderSource('planner');
+                          navigateTo('ExerciseBuilder');
+                        }}
+                        className={`w-28 flex flex-col items-center justify-center gap-1 text-aquamarine border border-aquamarine py-1.5 px-3 rounded-xl transition-colors ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                      >
+                        <Plus className="w-5 h-5" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Create</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {currentWorkout.length === 0 ? (
+                        <div className="text-center py-8">
+                          <ClipboardList className="w-12 h-12 mx-auto text-aquamarine mb-4" />
+                          <p className="text-aquamarine">Your workout is empty. Add exercises to begin.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={currentWorkout.map(i => i.uniqueId)} strategy={verticalListSortingStrategy}>
+                              {currentWorkout.map((item, index) => (
+                                <SortableExerciseItem 
+                                  key={item.uniqueId} 
+                                  item={item} 
+                                  index={index} 
+                                  editExercise={editExercise} 
+                                  toggleExpand={toggleExpand} 
+                                  removeItem={removeItem} 
+                                  expandedItems={expandedItems} 
+                                />
+                              ))}
+                            </SortableContext>
+                          </DndContext>
+                          
+                          <div className="flex justify-center pt-4">
+                            <button 
+                              onClick={handleSaveAndStart}
+                              className={`w-1/2 text-cyan border border-cyan py-1.5 px-4 rounded-xl transition-colors flex items-center justify-center ${CONTAINER_BUTTON_CLASS} container-button-hole`}
+                              title="Start Workout"
+                            >
+                              <Play className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
-
-                {/* Container 2: Workout List Section */}
-                <div className="relative z-30 p-6 border border-white/20 rounded-2xl glass_fill">
-                  <div className={`mb-6 ${CONTAINER_BUTTON_CLASS} container-button-hole border border-formula-green rounded-lg p-1`}>
-                    <input 
-                      type="text" 
-                      value={workoutName}
-                      onChange={(e) => setWorkoutName(e.target.value)}
-                      className="bg-transparent text-xl font-bold text-white px-4 py-2 focus:outline-none placeholder:text-white/20 w-full text-center"
-                      placeholder="Workout Name"
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    {currentWorkout.length === 0 ? (
-                      <div className="text-center py-8">
-                        <ClipboardList className="w-12 h-12 mx-auto text-aquamarine mb-4" />
-                        <p className="text-aquamarine">Your workout is empty. Add exercises to begin.</p>
-                      </div>
-                    ) : (
-                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                        <SortableContext items={currentWorkout.map(i => i.uniqueId)} strategy={verticalListSortingStrategy}>
-                          {currentWorkout.map((item, index) => (
-                            <SortableExerciseItem 
-                              key={item.uniqueId} 
-                              item={item} 
-                              index={index} 
-                              editExercise={editExercise} 
-                              toggleExpand={toggleExpand} 
-                              removeItem={removeItem} 
-                              expandedItems={expandedItems} 
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    )}
-                  </div>
-                </div>
               </div>
 
-            {/* Library Modal Overlay */}
-            {showLibrary && (
-              <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
-                <div className="w-full max-w-2xl max-h-[80vh] flex flex-col p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-2xl font-bold text-cyan">Select Exercise</h3>
-                    <button onClick={() => setShowLibrary(false)} className={`text-white/60 hover:text-white p-1 rounded-lg border-white/10 ${TOOLBAR_BUTTON_CLASS}`}>
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                  
-                  <div className="overflow-y-auto custom-scrollbar pr-2 flex-1 space-y-3">
-                    {exerciseLibrary.length === 0 ? (
-                      <div className="text-center py-8 text-aquamarine/60">
-                        No exercises in library. Go to Exercise Builder to create some.
-                      </div>
-                    ) : (
-                      exerciseLibrary.map(ex => (
-                        <div key={ex.id} className="bg-transparent border border-white/10 rounded-xl p-4 flex justify-between items-center hover:border-cyan/50 transition-colors">
-                          <div>
-                            <h4 className="font-bold text-white">{ex.name}</h4>
-                            <div className="text-xs text-aquamarine/60 mt-1">
-                              {ex.type === 'HIIT' ? `${ex.rounds} rounds` : ex.type === 'Set' ? `${ex.sets} sets x ${ex.reps} reps` : `${ex.totalSupersets} rounds x ${ex.exercises.length} exercises`} • {ex.type}
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => addFromLibrary(ex)}
-                            className={`bg-transparent no-blur hover:bg-transparent text-cyan border border-cyan/30 px-4 py-2 rounded-lg transition-colors flex items-center ${CONTAINER_BUTTON_CLASS}`}
-                          >
-                            <Plus className="w-4 h-4 mr-2" /> Add
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Library Modal Overlay removed in favor of full page view */}
 
             {/* Custom Builder Modal Overlay */}
             {customBuilderType && (
-              <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
-                <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar p-6">
+              <div className="fixed inset-0 modal_overlay flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar p-6 modal_content rounded-3xl">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-cyan">Design {customBuilderType} Exercise</h3>
                     <button onClick={() => setCustomBuilderType(null)} className={`text-white/60 hover:text-white p-1 rounded-lg border-white/10 ${TOOLBAR_BUTTON_CLASS}`}>
@@ -3007,7 +3144,7 @@ export default function App() {
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="block text-xs font-medium text-aquamarine/60 mb-1">Phase 1</label>
+                            <label className="block text-xs font-medium text-aquamarine/60 mb-1">Hard</label>
                             <input 
                               type="text"
                               value={cbHardName}
@@ -3025,7 +3162,7 @@ export default function App() {
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="block text-xs font-medium text-aquamarine/60 mb-1">Phase 2</label>
+                            <label className="block text-xs font-medium text-aquamarine/60 mb-1">Easy</label>
                             <input 
                               type="text"
                               value={cbEasyName}
@@ -3412,7 +3549,7 @@ export default function App() {
         );
 
       case 'WorkoutMode':
-        return <WorkoutEngine workout={currentWorkout} name={workoutName} onExit={() => setCurrentView('WorkoutPlanner')} />;
+        return <WorkoutEngine workout={currentWorkout} name={workoutName} onExit={goBack} />;
     }
   };
 
@@ -3421,8 +3558,8 @@ export default function App() {
       {renderView()}
       {/* Save and Start Modal */}
       {saveAndStartModal !== 'none' && (
-        <div className="fixed inset-0 glass_fill flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-sm text-center">
+        <div className="fixed inset-0 modal_overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-sm text-center p-8 modal_content rounded-3xl">
             <h3 className="text-2xl font-bold text-white mb-4">
               {saveAndStartModal === 'both' && "Workout unnamed and no exercises"}
               {saveAndStartModal === 'unnamed' && "Your workout is not named"}
@@ -3465,8 +3602,8 @@ export default function App() {
       )}
       {/* Custom Alert Modal */}
       {customAlert.show && (
-        <div className="fixed inset-0 glass_fill flex items-center justify-center z-[60] p-4">
-          <div className="w-full max-w-sm text-center p-8 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-xl">
+        <div className="fixed inset-0 modal_overlay flex items-center justify-center z-[60] p-4">
+          <div className="w-full max-w-sm text-center p-8 modal_content rounded-3xl">
             <h3 className="text-xl font-bold text-white mb-6">
               {customAlert.message}
             </h3>

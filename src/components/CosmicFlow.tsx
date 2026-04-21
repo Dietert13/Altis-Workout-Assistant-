@@ -3,12 +3,12 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 
-const PARTICLE_COUNT = 25000;
-const CLUSTER_COUNT = 8;
+const PARTICLE_COUNT = 12000;
+const CLUSTER_COUNT = 4;
 
 const DeepField = ({ phase, status }: { phase: string | null, status: string }) => {
   const meshRef = useRef<THREE.Points>(null);
-  const starCount = 10000;
+  const starCount = 20000;
   
   const stars = useMemo(() => {
     const pos = new Float32Array(starCount * 3);
@@ -86,12 +86,11 @@ const DeepField = ({ phase, status }: { phase: string | null, status: string }) 
   );
 };
 
-const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosionTrigger, phase, timeLeft = 0 }: { isHIIT: boolean, isMetronomeEnabled: boolean, metronomeBeat: number, explosionTrigger: number, phase: string | null, timeLeft?: number }) => {
+const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosionTrigger, phase, phaseColor, timeLeft = 0 }: { isHIIT: boolean, isMetronomeEnabled: boolean, metronomeBeat: number, explosionTrigger: number, phase: string | null, phaseColor: THREE.Color, timeLeft?: number }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const { viewport, camera } = useThree();
   const pulseTime = useRef(0);
-  const prevTimeLeft = useRef(timeLeft);
-  const clusterCount = 12;
+  const clusterCount = CLUSTER_COUNT;
   const clusterRadius = 10;
   
   // Reset on phase change
@@ -144,7 +143,8 @@ const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosion
     swirlSpeed: (Math.random() - 0.5) * 0.4
   })));
 
-  const particles = useRef(Array.from({ length: 18000 }, (_, i) => {
+  const atmParticleCount = 16000;
+  const particles = useRef(Array.from({ length: atmParticleCount }, (_, i) => {
     const radius = Math.random() * 10;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos((Math.random() * 2) - 1);
@@ -168,14 +168,10 @@ const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosion
 
     const time = state.clock.getElapsedTime();
 
-    // Trigger pulse on every second of timer
-    if (Math.floor(timeLeft) !== Math.floor(prevTimeLeft.current) && timeLeft > 0) {
-      prevTimeLeft.current = timeLeft;
-      pulseTime.current = 1.0;
-    }
-
-    pulseTime.current = Math.max(0, pulseTime.current - delta * 2.5); 
-    const pulseFactor = 1.0 + Math.sin(pulseTime.current * Math.PI) * 0.4; 
+    pulseTime.current = Math.max(0, pulseTime.current - delta * 2.0); 
+    // Smoother cubic easing for the pulse
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const pulseFactor = 1.0 + easeOutCubic(pulseTime.current) * 0.5; 
 
     const dummy = new THREE.Object3D();
     const tempColor = new THREE.Color();
@@ -197,8 +193,10 @@ const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosion
     particles.current.forEach((p, i) => {
       const cluster = clusters.current[p.clusterIndex];
       
-      // Particle swirl + Cluster swirl
+      // Particle swirl + Cluster swirl + organic jitter
+      const jitter = Math.sin(time * 2 + i) * 0.05;
       const rotatedOffset = p.originalOffset.clone()
+        .multiplyScalar(1 + jitter)
         .applyAxisAngle(p.axis, time * p.rotationSpeed)
         .applyEuler(new THREE.Euler(
           cluster.swirlRotation.x + time * cluster.swirlSpeed,
@@ -207,7 +205,11 @@ const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosion
         ));
       
       const depthFactor = THREE.MathUtils.mapLinear(cluster.position.z, -100, -10, 0.1, 1.0);
-      tempColor.copy(colors[p.clusterIndex]).multiplyScalar(depthFactor);
+      if (isHIIT) {
+        tempColor.copy(phaseColor).multiplyScalar(depthFactor);
+      } else {
+        tempColor.copy(colors[p.clusterIndex]).multiplyScalar(depthFactor);
+      }
       
       dummy.position.copy(cluster.position).addScaledVector(rotatedOffset, pulseFactor);
       dummy.scale.setScalar(p.scale);
@@ -220,25 +222,18 @@ const CosmicAtmosphere = ({ isHIIT, isMetronomeEnabled, metronomeBeat, explosion
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, 18000]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, atmParticleCount]}>
       <sphereGeometry args={[1, 16, 16]} />
       <meshBasicMaterial color="#ffffff" transparent opacity={0.06} blending={THREE.AdditiveBlending} depthWrite={false} />
     </instancedMesh>
   );
 };
 
-export const BpmEngine = ({ isPaused, metronomeBeat, isMetronomeEnabled, phaseColor, explosionTrigger, phase, timeLeft = 0 }: { isPaused: boolean, metronomeBeat: number, isMetronomeEnabled: boolean, phaseColor: THREE.Color, explosionTrigger: number, phase: string | null, timeLeft?: number }) => {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const prevMetronomeBeat = useRef(-1);
-  const prevTimeLeft = useRef(timeLeft);
-  const pulseTime = useRef(0);
+const OrbitingStars = ({ bpm, phaseColor, isMetronomeEnabled, metronomeBeat, explosionTrigger, metronomeStartTime }: { bpm: number, phaseColor: THREE.Color, isMetronomeEnabled: boolean, metronomeBeat: number, explosionTrigger: number, metronomeStartTime: number | null }) => {
+  const star1Ref = useRef<THREE.Mesh>(null);
+  const star2Ref = useRef<THREE.Mesh>(null);
+  const coronaRef = useRef<THREE.Mesh>(null);
   const explosionPulseTime = useRef(0);
-
-  // Reset on phase change
-  React.useEffect(() => {
-    pulseTime.current = 0;
-    explosionPulseTime.current = 0;
-  }, [phase]);
 
   React.useEffect(() => {
     if (explosionTrigger > 0) {
@@ -246,89 +241,129 @@ export const BpmEngine = ({ isPaused, metronomeBeat, isMetronomeEnabled, phaseCo
     }
   }, [explosionTrigger]);
 
-  const clusters = useRef([
-    { position: new THREE.Vector3(0, 0, 0) }
-  ]);
+  const starTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      gradient.addColorStop(0.65, 'rgba(255, 255, 255, 1)');   // Solid core
+      gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.6)');  // Defined edge
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');      // Subtle glow
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 128, 128);
+    }
+    return new THREE.CanvasTexture(canvas);
+  }, []);
 
-  const particles = useRef(Array.from({ length: 2400 }, (_, i) => {
-    // Using pow(random, 2.5) to pull density towards the center, making a dense core
-    const radius = Math.pow(Math.random(), 2.5) * 6.0; 
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos((Math.random() * 2) - 1);
-    const offset = new THREE.Vector3(
-      radius * Math.sin(phi) * Math.cos(theta),
-      radius * Math.sin(phi) * Math.sin(theta),
-      radius * Math.cos(phi)
-    );
-    return {
-      clusterIndex: 0,
-      offset,
-      originalOffset: offset.clone(),
-      scale: (Math.random() * 0.04 + 0.02) * 1.5, // Even smaller particles
-      rotationSpeed: (Math.random() - 0.5) * 2,
-      axis: new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize(),
-    };
-  }));
+  const coronaTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
+      gradient.addColorStop(0.8, 'rgba(255, 255, 255, 0.1)');
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 128, 128);
+    }
+    return new THREE.CanvasTexture(canvas);
+  }, []);
 
   useFrame((state, delta) => {
-    if (!meshRef.current || !isMetronomeEnabled) return;
-
-    // Trigger pulse on metronome beat
-    if (metronomeBeat !== prevMetronomeBeat.current) {
-      prevMetronomeBeat.current = metronomeBeat;
-      pulseTime.current = 1.0;
-    }
-
-    // Trigger pulse on every second of timer if metronome is not already pulsing
-    if (Math.floor(timeLeft) !== Math.floor(prevTimeLeft.current) && timeLeft > 0) {
-      prevTimeLeft.current = timeLeft;
-      if (pulseTime.current < 0.5) pulseTime.current = 1.0;
-    }
-
-    pulseTime.current = Math.max(0, pulseTime.current - delta * 3);
-    explosionPulseTime.current = Math.max(0, explosionPulseTime.current - delta * 0.2);
+    explosionPulseTime.current = Math.max(0, explosionPulseTime.current - delta * 1.5);
     
-    const metronomeFactor = Math.sin(pulseTime.current * Math.PI) * 0.3;
-    const explosionFactor = Math.sin(explosionPulseTime.current * Math.PI) * 2.0;
-    const pulseFactor = 1.0 + metronomeFactor + explosionFactor;
+    const effectiveBpm = isMetronomeEnabled ? bpm : 60;
+    const omega = (Math.PI * effectiveBpm) / 60;
+    
+    // Smooth angle derived from clock or metronome start
+    let currentAngle;
+    if (isMetronomeEnabled && metronomeStartTime !== null) {
+      const elapsed = (performance.now() - metronomeStartTime) / 1000;
+      currentAngle = elapsed * omega;
+    } else {
+      currentAngle = state.clock.getElapsedTime() * omega;
+    }
+    
+    const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+    const pulseStrength = easeOutQuint(explosionPulseTime.current);
+    
+    // Lock to eclipse (X=0) when pulse is high
+    const targetEclipseAngle = Math.round(currentAngle / Math.PI) * Math.PI;
+    const dispAngle = THREE.MathUtils.lerp(currentAngle, targetEclipseAngle, pulseStrength);
 
-    const dummy = new THREE.Object3D();
-    const time = state.clock.getElapsedTime();
+    const radius = 6;
+    // During supernova, they pull inward completely to merge into a single star
+    const currentRadius = radius * (1 - pulseStrength);
 
-    particles.current.forEach((p, i) => {
-      const cluster = clusters.current[p.clusterIndex];
-      
-      // Swirl effect: rotate offset around its axis
-      const rotatedOffset = p.originalOffset.clone().applyAxisAngle(p.axis, time * p.rotationSpeed);
-      
-      dummy.position.copy(cluster.position).addScaledVector(rotatedOffset, pulseFactor);
-      dummy.scale.setScalar(p.scale);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-      meshRef.current!.setColorAt(i, phaseColor);
-    });
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
+    // Eclipse effect for metronome
+    const eclipseGlow = Math.pow(Math.abs(Math.cos(currentAngle)), 20) * 0.4;
+    
+    // Supernova scale
+    const supernovaFactor = pulseStrength * 0.5; 
+    const baseScale = 1.0 + eclipseGlow + supernovaFactor;
+
+    const tilt = 0.2; 
+    const blipIntensity = Math.pow(Math.abs(Math.cos(currentAngle)), 40);
+    const blippedColor = phaseColor.clone().lerp(new THREE.Color('#000000'), blipIntensity * 0.6);
+
+    if (star1Ref.current) {
+      const x = Math.sin(dispAngle) * currentRadius;
+      const z = Math.cos(dispAngle) * currentRadius;
+      const y = Math.sin(dispAngle) * currentRadius * tilt;
+      star1Ref.current.position.set(x, y, z);
+      star1Ref.current.scale.setScalar(baseScale);
+      (star1Ref.current.material as THREE.MeshBasicMaterial).color.copy(blippedColor);
+    }
+    if (star2Ref.current) {
+      const x = Math.sin(dispAngle + Math.PI) * currentRadius;
+      const z = Math.cos(dispAngle + Math.PI) * currentRadius;
+      const y = Math.sin(dispAngle + Math.PI) * currentRadius * tilt;
+      star2Ref.current.position.set(x, y, z);
+      star2Ref.current.scale.setScalar(baseScale);
+      (star2Ref.current.material as THREE.MeshBasicMaterial).color.copy(blippedColor);
+    }
+    
+    if (coronaRef.current) {
+      const coronaIntensity = Math.pow(Math.abs(Math.cos(currentAngle)), 80);
+      coronaRef.current.scale.setScalar(baseScale * (1 + coronaIntensity * 1.2));
+      (coronaRef.current.material as THREE.MeshBasicMaterial).opacity = coronaIntensity * 0.4;
+    }
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, 2400]}>
-      <sphereGeometry args={[1, 20, 20]} />
-      <meshBasicMaterial transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} />
-    </instancedMesh>
+    <group>
+      <mesh ref={star1Ref}>
+        <planeGeometry args={[3.5, 3.5]} />
+        <meshBasicMaterial map={starTexture} color={phaseColor} transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <mesh ref={star2Ref}>
+        <planeGeometry args={[3.5, 3.5]} />
+        <meshBasicMaterial map={starTexture} color={phaseColor} transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <mesh ref={coronaRef}>
+        <planeGeometry args={[5.5, 5.5]} />
+        <meshBasicMaterial map={coronaTexture} color={phaseColor} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+    </group>
   );
 };
 
-export const CosmicFlow = ({ phase, isPaused, timeLeft = 0, explosionTrigger = 0, customColor, isDroning = false, bloomIntensity = 1.0, metronomeBeat = 0, status = 'active', isHIIT = false, isMetronomeEnabled = false }: { phase: string | null, isPaused: boolean, timeLeft?: number, explosionTrigger?: number, customColor?: string, isDroning?: boolean, bloomIntensity?: number, metronomeBeat?: number, status?: string, isHIIT?: boolean, isMetronomeEnabled?: boolean }) => {
+export const CosmicFlow = ({ phase, isPaused, timeLeft = 0, explosionTrigger = 0, customColor, isDroning = false, bloomIntensity = 1.0, metronomeBeat = 0, status = 'active', isHIIT = false, isMetronomeEnabled = false, bpm = 60, metronomeStartTime = null }: { phase: string | null, isPaused: boolean, timeLeft?: number, explosionTrigger?: number, customColor?: string, isDroning?: boolean, bloomIntensity?: number, metronomeBeat?: number, status?: string, isHIIT?: boolean, isMetronomeEnabled?: boolean, bpm?: number, metronomeStartTime?: number | null }) => {
   const phaseColor = useMemo(() => {
     const color = new THREE.Color();
     if (customColor) color.set(customColor);
-    else if (phase === 'Warmup') color.set('#7FFFD4'); // Aquamarine
-    else if (phase === 'Hard') color.set('#00E5FF'); // Electric cyan
-    else if (phase === 'Easy') color.set('#00BFA5'); // Borealis teal
-    else if (phase === 'Cooldown') color.set('#0047AB'); // Cobalt blue
-    else if (phase === 'Set_RepRest' || phase === 'Set_Rest') color.set('#3D5AFE'); // Cosmic indigo
-    else if (phase === 'Superset_ExerciseRest' || phase === 'Superset_RoundRest') color.set('#3D5AFE'); // Cosmic indigo
+    else if (phase === 'Warmup') color.set('#FFFF00'); // Yellow
+    else if (phase === 'Hard') color.set('#00FF00'); // Green
+    else if (phase === 'Easy') color.set('#FF0000'); // Red
+    else if (phase === 'Cooldown') color.set('#0000FF'); // Blue
+    else if (phase === 'Set_Active' || phase === 'Superset_Active') color.set('#00E5FF'); // Electric cyan
+    else if (phase?.includes('Rest')) color.set('#FF0000'); // Red for any rest period in Sets/Supersets
     else color.set('#ffffff');
     return color;
   }, [phase, customColor]);
@@ -337,9 +372,9 @@ export const CosmicFlow = ({ phase, isPaused, timeLeft = 0, explosionTrigger = 0
     <div className="absolute inset-0 z-0 pointer-events-none">
       <Canvas camera={{ position: [0, 0, 25], fov: 60 }} gl={{ alpha: true }}>
         <DeepField phase={phase} status={status} />
-        <CosmicAtmosphere isHIIT={isHIIT} isMetronomeEnabled={isMetronomeEnabled} metronomeBeat={metronomeBeat} explosionTrigger={explosionTrigger} phase={phase} timeLeft={timeLeft} />
-        {isHIIT && isMetronomeEnabled && (
-          <BpmEngine isPaused={isPaused} metronomeBeat={metronomeBeat} isMetronomeEnabled={isMetronomeEnabled} phaseColor={phaseColor} explosionTrigger={explosionTrigger} phase={phase} timeLeft={timeLeft} />
+        <CosmicAtmosphere isHIIT={isHIIT} isMetronomeEnabled={isMetronomeEnabled} metronomeBeat={metronomeBeat} explosionTrigger={explosionTrigger} phase={phase} phaseColor={phaseColor} timeLeft={timeLeft} />
+        {isHIIT && (
+          <OrbitingStars bpm={bpm} phaseColor={phaseColor} isMetronomeEnabled={isMetronomeEnabled} metronomeBeat={metronomeBeat} explosionTrigger={explosionTrigger} metronomeStartTime={metronomeStartTime} />
         )}
         <EffectComposer multisampling={4}>
           <Bloom 
